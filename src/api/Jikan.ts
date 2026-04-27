@@ -19,6 +19,7 @@ type NamedResource = { name: string };
 
 export type Anime = {
   mal_id: number;
+  rank?: number | null;
   title: string;
   title_english?: string | null;
   title_japanese?: string | null;
@@ -33,6 +34,8 @@ export type Anime = {
   studios?: NamedResource[];
   genres?: NamedResource[];
   explicit_genres?: NamedResource[];
+  themes?: NamedResource[];
+  demographics?: NamedResource[];
 };
 
 export function isSfwAnime(anime: Anime): boolean {
