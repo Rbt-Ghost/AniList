@@ -190,7 +190,7 @@ export default function Dashboard({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-100 text-zinc-900 dark:from-zinc-950 dark:to-zinc-950 dark:text-zinc-50">
+    <div className="min-h-screen bg-linear-to-b from-zinc-50 to-zinc-100 text-zinc-900 dark:from-zinc-950 dark:to-zinc-950 dark:text-zinc-50">
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/70 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/60">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -208,7 +208,7 @@ export default function Dashboard({
               {isDark ? "Light mode" : "Dark mode"}
             </button>
 
-            <div className="w-full sm:w-[360px]">
+            <div className="w-full sm:w-90">
             <label className="sr-only" htmlFor="anime-search">
               Search anime
             </label>

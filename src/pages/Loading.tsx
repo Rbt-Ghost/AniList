@@ -1,6 +1,6 @@
 export default function LoadingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-100 text-zinc-900 dark:from-zinc-950 dark:to-zinc-950 dark:text-zinc-50">
+    <div className="min-h-screen bg-linear-to-b from-zinc-50 to-zinc-100 text-zinc-900 dark:from-zinc-950 dark:to-zinc-950 dark:text-zinc-50">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6">
         <div className="flex items-center gap-3">
           <div
