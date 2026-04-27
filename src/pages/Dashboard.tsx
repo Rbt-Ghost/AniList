@@ -42,9 +42,9 @@ function AnimeCard({
   const title = formatTitle(anime);
 
   return (
-    <div className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 shadow-sm backdrop-blur transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950/60">
+    <div className="group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/60 shadow-sm backdrop-blur transition hover:shadow-md">
       <div className="flex">
-        <div className="h-28 w-20 shrink-0 bg-zinc-100 dark:bg-zinc-900">
+        <div className="h-28 w-20 shrink-0 bg-zinc-900">
           {imageUrl ? (
             <img
               src={imageUrl}
@@ -57,10 +57,10 @@ function AnimeCard({
         <div className="min-w-0 flex-1 p-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              <div className="truncate text-sm font-semibold text-zinc-50">
                 {title}
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
                 {anime.year ? <span>{anime.year}</span> : null}
                 {anime.score != null ? <span>★ {anime.score}</span> : <span>★ —</span>}
               </div>
@@ -69,7 +69,7 @@ function AnimeCard({
               type="button"
               onClick={action}
               disabled={actionDisabled}
-              className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+              className="shrink-0 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs font-medium text-zinc-50 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {actionLabel}
             </button>
@@ -82,26 +82,20 @@ function AnimeCard({
 
 function SkeletonCard() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-sm">
       <div className="flex animate-pulse">
-        <div className="h-28 w-20 shrink-0 bg-zinc-100 dark:bg-zinc-900" />
+        <div className="h-28 w-20 shrink-0 bg-zinc-900" />
         <div className="flex-1 p-3">
-          <div className="h-4 w-3/4 rounded bg-zinc-100 dark:bg-zinc-900" />
-          <div className="mt-2 h-3 w-1/2 rounded bg-zinc-100 dark:bg-zinc-900" />
-          <div className="mt-4 h-7 w-16 rounded bg-zinc-100 dark:bg-zinc-900" />
+          <div className="h-4 w-3/4 rounded bg-zinc-900" />
+          <div className="mt-2 h-3 w-1/2 rounded bg-zinc-900" />
+          <div className="mt-4 h-7 w-16 rounded bg-zinc-900" />
         </div>
       </div>
     </div>
   );
 }
 
-export default function Dashboard({
-  isDark,
-  onToggleTheme,
-}: {
-  isDark: boolean;
-  onToggleTheme: () => void;
-}) {
+export default function Dashboard() {
   const [query, setQuery] = useState("");
 
   const [topAnime, setTopAnime] = useState<Anime[]>([]);
@@ -190,25 +184,16 @@ export default function Dashboard({
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-zinc-50 to-zinc-100 text-zinc-900 dark:from-zinc-950 dark:to-zinc-950 dark:text-zinc-50">
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/70 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/60">
+    <div className="min-h-screen bg-linear-to-b from-zinc-950 to-zinc-950 text-zinc-50">
+      <header className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/60 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-semibold tracking-tight">AniList</h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Search anime and build your list.</p>
+            <p className="text-sm text-zinc-400">Search anime and build your list.</p>
           </div>
 
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className="inline-flex w-full items-center justify-center rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900 sm:w-auto"
-              aria-label="Toggle theme"
-            >
-              {isDark ? "Light mode" : "Dark mode"}
-            </button>
-
-            <div className="w-full sm:w-90">
+            <div className="w-full sm:w-[360px]">
             <label className="sr-only" htmlFor="anime-search">
               Search anime
             </label>
@@ -227,7 +212,7 @@ export default function Dashboard({
                   }
                 }}
                 placeholder="Search (e.g., Naruto, Frieren, One Piece)"
-                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 pr-10 text-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:placeholder:text-zinc-500 dark:focus:border-zinc-700"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 pr-10 text-sm text-zinc-50 outline-none ring-0 placeholder:text-zinc-500 focus:border-zinc-700"
               />
               {query.length > 0 ? (
                 <button
@@ -238,7 +223,7 @@ export default function Dashboard({
                     setSearchLoading(false);
                     setSearchError(null);
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-900"
                   aria-label="Clear search"
                 >
                   Clear
@@ -255,11 +240,11 @@ export default function Dashboard({
           <aside className="lg:sticky lg:top-28 lg:self-start">
             <div className="flex items-end justify-between gap-4">
               <h2 className="text-lg font-semibold">My List</h2>
-              <div className="text-sm text-zinc-500 dark:text-zinc-400">{myList.length} saved</div>
+              <div className="text-sm text-zinc-400">{myList.length} saved</div>
             </div>
 
             {myList.length === 0 ? (
-              <div className="mt-3 rounded-2xl border border-dashed border-zinc-300 bg-white/70 p-6 text-sm text-zinc-600 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-400">
+              <div className="mt-3 rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/60 p-6 text-sm text-zinc-400 backdrop-blur">
                 Your list is empty. Search above and add anime you want to track.
               </div>
             ) : (
@@ -280,7 +265,7 @@ export default function Dashboard({
             <div className="flex items-end justify-between gap-4">
               <h2 className="text-lg font-semibold">{showingSearch ? "Search Results" : "Top Anime"}</h2>
               {showingSearch ? (
-                <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                <div className="text-sm text-zinc-400">
                   Showing results for “{trimmedQuery}”
                 </div>
               ) : null}
@@ -289,7 +274,7 @@ export default function Dashboard({
             {showingSearch ? (
               <div className="mt-4">
               {searchError ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
+                <div className="rounded-2xl border border-red-900/50 bg-red-950/40 p-4 text-sm text-red-100">
                   {searchError}
                 </div>
               ) : null}
@@ -301,7 +286,7 @@ export default function Dashboard({
                   ))}
                 </div>
               ) : results.length === 0 ? (
-                <div className="mt-3 rounded-2xl border border-zinc-200 bg-white/70 p-6 text-sm text-zinc-600 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-400">
+                <div className="mt-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 text-sm text-zinc-400 backdrop-blur">
                   No matches yet. Try a different title.
                 </div>
               ) : (
@@ -321,7 +306,7 @@ export default function Dashboard({
             ) : (
               <div className="mt-4">
               {topError ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
+                <div className="rounded-2xl border border-red-900/50 bg-red-950/40 p-4 text-sm text-red-100">
                   {topError}
                 </div>
               ) : null}
