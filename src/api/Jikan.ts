@@ -32,15 +32,25 @@ export type Anime = {
   season?: string | null;
   studios?: NamedResource[];
   genres?: NamedResource[];
+  explicit_genres?: NamedResource[];
 };
 
+export function isSfwAnime(anime: Anime): boolean {
+  const rating = (anime.rating ?? "").toLowerCase();
+  if (rating.startsWith("rx")) return false;
+  if (rating.includes("hentai")) return false;
+
+  const allGenres = [...(anime.genres ?? []), ...(anime.explicit_genres ?? [])];
+  return !allGenres.some((g) => g.name.toLowerCase() === "hentai");
+}
+
 export function getTopAnime(signal?: AbortSignal) {
-  return jikanGet<Anime[]>("/top/anime", signal);
+  return jikanGet<Anime[]>("/top/anime", signal).then((items) => items.filter(isSfwAnime));
 }
 
 export function searchAnime(q: string, signal?: AbortSignal) {
   const params = new URLSearchParams({ q, limit: "12" });
-  return jikanGet<Anime[]>(`/anime?${params}`, signal);
+  return jikanGet<Anime[]>(`/anime?${params}`, signal).then((items) => items.filter(isSfwAnime));
 }
 
 export function getAnimeById(id: number, signal?: AbortSignal) {

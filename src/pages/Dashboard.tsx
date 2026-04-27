@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { getTopAnime, searchAnime, type Anime } from "../api/Jikan.ts";
+import { getTopAnime, isSfwAnime, searchAnime, type Anime } from "../api/Jikan.ts";
 
 type AnimeCardData = Pick<Anime, "mal_id" | "title" | "title_english" | "images" | "score" | "year">;
-type MyListEntry = AnimeCardData;
+type MyListEntry = AnimeCardData & {
+  rating?: Anime["rating"];
+  genres?: string[];
+};
 
 const STORAGE_KEY = "anilist.myList.v1";
 
@@ -25,6 +28,13 @@ function safeJsonParse<T>(value: string | null, fallback: T): T {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+function isSfwEntry(entry: MyListEntry): boolean {
+  const rating = (entry.rating ?? "").toLowerCase();
+  if (rating.startsWith("rx")) return false;
+  if (rating.includes("hentai")) return false;
+  return !(entry.genres ?? []).some((g) => g.toLowerCase() === "hentai");
 }
 
 function AnimeCard({
@@ -108,7 +118,8 @@ export default function Dashboard() {
 
   const [myList, setMyList] = useState<MyListEntry[]>(() => {
     if (typeof window === "undefined") return [];
-    return safeJsonParse<MyListEntry[]>(localStorage.getItem(STORAGE_KEY), []);
+    const stored = safeJsonParse<MyListEntry[]>(localStorage.getItem(STORAGE_KEY), []);
+    return stored.filter(isSfwEntry);
   });
 
   const myListIds = useMemo(() => new Set(myList.map((a) => a.mal_id)), [myList]);
@@ -165,6 +176,7 @@ export default function Dashboard() {
   }, [showingSearch, trimmedQuery]);
 
   function addToMyList(anime: Anime) {
+    if (!isSfwAnime(anime)) return;
     setMyList((prev) => {
       if (prev.some((a) => a.mal_id === anime.mal_id)) return prev;
       const entry: MyListEntry = {
@@ -174,6 +186,8 @@ export default function Dashboard() {
         images: anime.images,
         score: anime.score,
         year: anime.year,
+        rating: anime.rating,
+        genres: [...(anime.genres ?? []), ...(anime.explicit_genres ?? [])].map((g) => g.name),
       };
       return [entry, ...prev];
     });
