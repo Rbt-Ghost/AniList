@@ -193,7 +193,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-            <div className="w-full sm:w-[360px]">
+            <div className="w-full sm:w-90">
             <label className="sr-only" htmlFor="anime-search">
               Search anime
             </label>
