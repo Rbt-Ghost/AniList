@@ -35,16 +35,20 @@ export default function HeroSection({ items }: { items: Anime[] }) {
   const scoreText = anime.score != null ? `${anime.score}` : "—";
   const episodesText = anime.episodes != null ? `${anime.episodes}` : "—";
 
-  const bottomFacts = [
+  // Show fewer facts on mobile
+  const allFacts = [
     { label: "Score", value: scoreText },
     { label: "Episodes", value: episodesText },
     ...(anime.status ? [{ label: "Status", value: anime.status }] : []),
     ...(anime.year ? [{ label: "Year", value: `${anime.year}` }] : []),
-  ].slice(0, 4);
+  ];
+  
+  const bottomFacts = allFacts.slice(0, 4);
+  const mobileBottomFacts = allFacts.slice(0, 2);
 
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-sm">
-      <div className="relative h-80 sm:h-135">
+      <div className="relative h-56 xs:h-64 sm:h-80 md:h-135">
         {bgUrl ? (
           <img
             src={bgUrl}
@@ -62,19 +66,19 @@ export default function HeroSection({ items }: { items: Anime[] }) {
 
         <div className="absolute inset-0 bg-linear-to-t from-zinc-950 via-zinc-950/80 to-zinc-950/30" />
 
-        <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
-          <div className="flex items-end justify-between gap-4">
-            <div className="flex items-end gap-4">
-              <div className="h-32 w-24 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 sm:h-36 sm:w-28">
+        <div className="absolute inset-x-0 bottom-0 p-3 xs:p-4 sm:p-5 md:p-6">
+          <div className="flex flex-col gap-3 xs:gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="flex gap-3 xs:gap-4 min-w-0">
+              <div className="h-24 w-18 xs:h-28 xs:w-20 sm:h-32 sm:w-24 md:h-36 md:w-28 shrink-0 overflow-hidden rounded-xl xs:rounded-2xl border border-zinc-800 bg-zinc-900">
                 {coverUrl ? (
                   <img src={coverUrl} alt={title} className="h-full w-full object-cover" />
                 ) : null}
               </div>
 
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-zinc-400">Featuring</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs xs:text-sm font-medium text-zinc-400">Featuring</div>
                 <h2
-                  className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl"
+                  className="mt-1 text-base xs:text-lg sm:text-xl md:text-2xl font-semibold tracking-tight leading-tight"
                   style={{
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
@@ -87,10 +91,10 @@ export default function HeroSection({ items }: { items: Anime[] }) {
 
                 {anime.synopsis ? (
                   <p
-                    className="mt-2 max-w-2xl text-sm text-zinc-300/90"
+                    className="mt-1 xs:mt-2 text-xs xs:text-sm text-zinc-300/90 leading-snug"
                     style={{
                       display: "-webkit-box",
-                      WebkitLineClamp: 3,
+                      WebkitLineClamp: 2,
                       WebkitBoxOrient: "vertical",
                       overflow: "hidden",
                     }}
@@ -99,30 +103,44 @@ export default function HeroSection({ items }: { items: Anime[] }) {
                   </p>
                 ) : null}
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {bottomFacts.map((f) => (
+                <div className="mt-2 xs:mt-3 flex flex-wrap gap-1.5 xs:gap-2">
+                  {mobileBottomFacts.map((f) => (
                     <span
                       key={f.label}
-                      className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2.5 py-1 text-xs text-zinc-200"
+                      className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2 xs:px-2.5 py-0.5 xs:py-1 text-xs text-zinc-200 whitespace-nowrap"
                     >
                       <span className="text-zinc-400">{f.label}:</span> {f.value}
                     </span>
                   ))}
                 </div>
+
+                {/* Show additional facts on larger screens */}
+                {bottomFacts.length > 2 ? (
+                  <div className="hidden sm:flex mt-2 flex-wrap gap-2">
+                    {bottomFacts.slice(2).map((f) => (
+                      <span
+                        key={f.label}
+                        className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2.5 py-1 text-xs text-zinc-200"
+                      >
+                        <span className="text-zinc-400">{f.label}:</span> {f.value}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 justify-end md:justify-start shrink-0">
               <button
                 type="button"
                 onClick={() => {
                   setIndex((i) => (i - 1 + count) % count);
                   setSeed((s) => s + 1);
                 }}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/50 text-zinc-200 backdrop-blur hover:bg-zinc-900/50"
+                className="inline-flex h-9 xs:h-10 w-9 xs:w-10 items-center justify-center rounded-lg xs:rounded-xl border border-zinc-800 bg-zinc-950/50 text-zinc-200 backdrop-blur hover:bg-zinc-900/50 transition-colors active:bg-zinc-800/80"
                 aria-label="Previous featured anime"
               >
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 xs:h-5 w-4 xs:w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </button>
@@ -133,10 +151,10 @@ export default function HeroSection({ items }: { items: Anime[] }) {
                   setIndex((i) => (i + 1) % count);
                   setSeed((s) => s + 1);
                 }}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/50 text-zinc-200 backdrop-blur hover:bg-zinc-900/50"
+                className="inline-flex h-9 xs:h-10 w-9 xs:w-10 items-center justify-center rounded-lg xs:rounded-xl border border-zinc-800 bg-zinc-950/50 text-zinc-200 backdrop-blur hover:bg-zinc-900/50 transition-colors active:bg-zinc-800/80"
                 aria-label="Next featured anime"
               >
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 xs:h-5 w-4 xs:w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 18l6-6-6-6" />
                 </svg>
               </button>
