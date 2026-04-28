@@ -64,8 +64,18 @@ function normalizeTrailer(anime: Anime): Anime {
   };
 }
 
+function dedupeAnimeById(items: Anime[]) {
+  const seen = new Set<number>();
+
+  return items.filter((anime) => {
+    if (seen.has(anime.mal_id)) return false;
+    seen.add(anime.mal_id);
+    return true;
+  });
+}
+
 function normalizeAnimeList(items: Anime[]) {
-  return items.map(normalizeTrailer);
+  return dedupeAnimeById(items.map(normalizeTrailer));
 }
 
 async function jikanGet<T>(path: string, signal?: AbortSignal): Promise<T> {
