@@ -23,7 +23,7 @@ export type Anime = {
   title: string;
   title_english?: string | null;
   title_japanese?: string | null;
-  images?: { jpg?: { image_url?: string } };
+  images?: { jpg?: { image_url?: string; small_image_url?: string; large_image_url?: string } };
   synopsis?: string | null;
   score?: number | null;
   episodes?: number | null;
@@ -49,6 +49,11 @@ export function isSfwAnime(anime: Anime): boolean {
 
 export function getTopAnime(signal?: AbortSignal) {
   return jikanGet<Anime[]>("/top/anime", signal).then((items) => items.filter(isSfwAnime));
+}
+
+export function getOngoingAnime(signal?: AbortSignal) {
+  const params = new URLSearchParams({ limit: "12" });
+  return jikanGet<Anime[]>(`/seasons/now?${params}`, signal).then((items) => items.filter(isSfwAnime));
 }
 
 export function searchAnime(q: string, signal?: AbortSignal) {

@@ -32,7 +32,7 @@ export default function AnimeCard({ anime }: Props) {
   return (
     <div className="group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40 shadow-sm backdrop-blur transition hover:shadow-md">
       <div className="flex">
-        <div className="h-28 w-20 shrink-0 bg-zinc-900">
+        <div className="h-32 w-24 shrink-0 bg-zinc-900">
           {imageUrl ? (
             <img
               src={imageUrl}
