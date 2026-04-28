@@ -42,7 +42,7 @@ export default function NotFound() {
               <img
                 src="/rengoku.jpg"
                 alt="Dramatic anime scene"
-                className="h-80 w-full object-cover object-center transition duration-500 group-hover:scale-[1.03] sm:h-[30rem]"
+                className="h-80 w-full object-cover object-center transition duration-500 group-hover:scale-[1.03] sm:h-120"
               />
               <div className="absolute inset-0 bg-linear-to-t from-zinc-950/85 via-zinc-950/25 to-transparent" />
 
