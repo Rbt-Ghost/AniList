@@ -193,7 +193,7 @@ export default function Dashboard() {
                       setSearchError(null);
                     }
                   }}
-                  placeholder="What do you want to watch?"
+                  placeholder="What are you watching today?"
                   className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 pr-10 text-sm text-zinc-50 outline-none ring-0 placeholder:text-zinc-500 focus:border-zinc-700"
                 />
                 {query.length > 0 ? (
@@ -261,9 +261,6 @@ export default function Dashboard() {
           <section>
             <div className="flex items-end justify-between gap-4">
               <h2 className="text-lg font-semibold">{showingSearch ? "Search Results" : "Top Anime"}</h2>
-              {showingSearch ? (
-                <div className="text-sm text-zinc-400">Showing results for “{trimmedQuery}”</div>
-              ) : null}
             </div>
 
             {showingSearch ? (
