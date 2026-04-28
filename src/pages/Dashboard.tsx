@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
-import { getOngoingAnime, getTopAnime, searchAnime, type Anime } from "../api/Jikan.ts";
+import { useEffect, useRef, useState } from "react";
+import { getOngoingAnime, getTopAnimePage, searchAnime, type Anime } from "../api/Jikan.ts";
 import AnimeCard from "../components/AnimeCard.tsx";
 import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
+
+const TOP_PAGE_SIZE = 20;
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
@@ -183,8 +185,12 @@ export default function Dashboard() {
   const [ongoingError, setOngoingError] = useState<string | null>(null);
 
   const [topAnime, setTopAnime] = useState<Anime[]>([]);
+  const [topPage, setTopPage] = useState(1);
+  const [topHasNextPage, setTopHasNextPage] = useState(true);
   const [topLoading, setTopLoading] = useState(true);
+  const [topLoadingMore, setTopLoadingMore] = useState(false);
   const [topError, setTopError] = useState<string | null>(null);
+  const topLoadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const [results, setResults] = useState<Anime[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -194,22 +200,60 @@ export default function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const firstPage = topPage === 1;
 
     (async () => {
       try {
-        setTopLoading(true);
+        if (firstPage) {
+          setTopLoading(true);
+        } else {
+          setTopLoadingMore(true);
+        }
         setTopError(null);
-        const data = await getTopAnime(controller.signal);
-        setTopAnime(data);
+        const { items, hasNextPage } = await getTopAnimePage(topPage, TOP_PAGE_SIZE, controller.signal);
+        setTopHasNextPage(hasNextPage);
+
+        setTopAnime((prev) => {
+          if (firstPage) return items;
+
+          const seen = new Set(prev.map((a) => a.mal_id));
+          const uniqueNewItems = items.filter((a) => !seen.has(a.mal_id));
+          return [...prev, ...uniqueNewItems];
+        });
       } catch (e) {
         if (!isAbortError(e)) setTopError((e as Error).message);
       } finally {
-        setTopLoading(false);
+        if (firstPage) {
+          setTopLoading(false);
+        } else {
+          setTopLoadingMore(false);
+        }
       }
     })();
 
     return () => controller.abort();
-  }, []);
+  }, [topPage]);
+
+  useEffect(() => {
+    if (showingSearch || topLoading || topLoadingMore || topError || !topHasNextPage) return;
+
+    const target = topLoadMoreRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+
+        observer.unobserve(first.target);
+        setTopPage((p) => p + 1);
+      },
+      { rootMargin: "260px 0px" }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [showingSearch, topLoading, topLoadingMore, topError, topHasNextPage]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -407,10 +451,22 @@ export default function Dashboard() {
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {topAnime.map((a) => (
-                      <AnimeCard key={a.mal_id} anime={a} />
-                    ))}
+                  <div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      {topAnime.map((a) => (
+                        <AnimeCard key={a.mal_id} anime={a} />
+                      ))}
+                    </div>
+
+                    {topLoadingMore ? (
+                      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <SkeletonCard key={`top-load-${i}`} />
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {topHasNextPage ? <div ref={topLoadMoreRef} className="h-1" aria-hidden="true" /> : null}
                   </div>
                 )}
               </div>

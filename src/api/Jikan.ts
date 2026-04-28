@@ -3,6 +3,12 @@ const DEFAULT_BASE = "https://api.jikan.moe/v4";
 const BASE = import.meta.env.VITE_JIKAN_BASE_URL ?? DEFAULT_BASE;
 
 type JikanEnvelope<T> = { data: T };
+type JikanPagedEnvelope<T> = {
+  data: T;
+  pagination?: {
+    has_next_page?: boolean;
+  };
+};
 
 function getYouTubeIdFromEmbedUrl(embedUrl?: string | null): string | null {
   if (!embedUrl) return null;
@@ -72,6 +78,20 @@ async function jikanGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   return json.data;
 }
 
+async function jikanGetPaged<T>(path: string, signal?: AbortSignal): Promise<{ data: T; hasNextPage: boolean }> {
+  const res = await fetch(`${BASE}${path}`, { signal });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Jikan ${res.status}: ${text || res.statusText}`);
+  }
+
+  const json = (await res.json()) as JikanPagedEnvelope<T>;
+  return {
+    data: json.data,
+    hasNextPage: json.pagination?.has_next_page ?? false,
+  };
+}
+
 // Minimal types (expand as you need)
 type NamedResource = { name: string };
 
@@ -118,7 +138,29 @@ export function isSfwAnime(anime: Anime): boolean {
 }
 
 export function getTopAnime(signal?: AbortSignal) {
-  return jikanGet<Anime[]>("/top/anime", signal).then((items) => normalizeAnimeList(items).filter(isSfwAnime));
+  const params = new URLSearchParams({
+    page: "1",
+    limit: "20",
+    sfw: "true",
+  });
+
+  return jikanGetPaged<Anime[]>(`/top/anime?${params}`, signal).then(({ data, hasNextPage }) => ({
+    items: normalizeAnimeList(data).filter(isSfwAnime),
+    hasNextPage,
+  }));
+}
+
+export function getTopAnimePage(page: number, limit = 20, signal?: AbortSignal) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    sfw: "true",
+  });
+
+  return jikanGetPaged<Anime[]>(`/top/anime?${params}`, signal).then(({ data, hasNextPage }) => ({
+    items: normalizeAnimeList(data).filter(isSfwAnime),
+    hasNextPage,
+  }));
 }
 
 export function getOngoingAnime(signal?: AbortSignal) {
