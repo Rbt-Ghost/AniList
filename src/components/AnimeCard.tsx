@@ -1,16 +1,9 @@
 import type { Anime } from "../api/Jikan.ts";
+import { formatAnimeTitle, getCardImageUrl } from "../utils/animeMedia.ts";
 
 type Props = {
   anime: Anime;
 };
-
-function formatTitle(anime: Anime) {
-  return anime.title_english || anime.title;
-}
-
-function getImageUrl(anime: Anime) {
-  return anime.images?.jpg?.image_url;
-}
 
 function getAnimeTags(anime: Anime): string[] {
   const tags = [
@@ -25,8 +18,8 @@ function getAnimeTags(anime: Anime): string[] {
 }
 
 export default function AnimeCard({ anime }: Props) {
-  const imageUrl = getImageUrl(anime);
-  const title = formatTitle(anime);
+  const imageUrl = getCardImageUrl(anime);
+  const title = formatAnimeTitle(anime);
   const tags = getAnimeTags(anime);
 
   return (

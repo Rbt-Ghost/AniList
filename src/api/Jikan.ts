@@ -4,6 +4,64 @@ const BASE = import.meta.env.VITE_JIKAN_BASE_URL ?? DEFAULT_BASE;
 
 type JikanEnvelope<T> = { data: T };
 
+function getYouTubeIdFromEmbedUrl(embedUrl?: string | null): string | null {
+  if (!embedUrl) return null;
+
+  try {
+    const url = new URL(embedUrl);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const embedIndex = parts.indexOf("embed");
+    if (embedIndex >= 0) {
+      return parts[embedIndex + 1] ?? null;
+    }
+  } catch {
+    // Fallback for malformed URLs.
+  }
+
+  const match = embedUrl.match(/\/embed\/([^?&#/]+)/);
+  return match?.[1] ?? null;
+}
+
+function getYouTubeThumbnailUrls(youtubeId: string) {
+  return {
+    image_url: `https://i.ytimg.com/vi/${youtubeId}/mqdefault.jpg`,
+    small_image_url: `https://i.ytimg.com/vi/${youtubeId}/default.jpg`,
+    medium_image_url: `https://i.ytimg.com/vi/${youtubeId}/mqdefault.jpg`,
+    large_image_url: `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`,
+    maximum_image_url: `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`,
+  };
+}
+
+function normalizeTrailer(anime: Anime): Anime {
+  const trailer = anime.trailer;
+  if (!trailer) return anime;
+
+  const youtubeId = trailer.youtube_id || getYouTubeIdFromEmbedUrl(trailer.embed_url);
+  if (!youtubeId) return anime;
+
+  const fallbackImages = getYouTubeThumbnailUrls(youtubeId);
+  const images = {
+    image_url: trailer.images?.image_url ?? fallbackImages.image_url,
+    small_image_url: trailer.images?.small_image_url ?? fallbackImages.small_image_url,
+    medium_image_url: trailer.images?.medium_image_url ?? fallbackImages.medium_image_url,
+    large_image_url: trailer.images?.large_image_url ?? fallbackImages.large_image_url,
+    maximum_image_url: trailer.images?.maximum_image_url ?? fallbackImages.maximum_image_url,
+  };
+
+  return {
+    ...anime,
+    trailer: {
+      ...trailer,
+      youtube_id: youtubeId,
+      images,
+    },
+  };
+}
+
+function normalizeAnimeList(items: Anime[]) {
+  return items.map(normalizeTrailer);
+}
+
 async function jikanGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { signal });
   if (!res.ok) {
@@ -24,6 +82,18 @@ export type Anime = {
   title_english?: string | null;
   title_japanese?: string | null;
   images?: { jpg?: { image_url?: string; small_image_url?: string; large_image_url?: string } };
+  trailer?: {
+    youtube_id?: string | null;
+    url?: string | null;
+    embed_url?: string | null;
+    images?: {
+      image_url?: string | null;
+      small_image_url?: string | null;
+      medium_image_url?: string | null;
+      large_image_url?: string | null;
+      maximum_image_url?: string | null;
+    };
+  };
   synopsis?: string | null;
   score?: number | null;
   episodes?: number | null;
@@ -48,19 +118,19 @@ export function isSfwAnime(anime: Anime): boolean {
 }
 
 export function getTopAnime(signal?: AbortSignal) {
-  return jikanGet<Anime[]>("/top/anime", signal).then((items) => items.filter(isSfwAnime));
+  return jikanGet<Anime[]>("/top/anime", signal).then((items) => normalizeAnimeList(items).filter(isSfwAnime));
 }
 
 export function getOngoingAnime(signal?: AbortSignal) {
   const params = new URLSearchParams({ limit: "15" });
-  return jikanGet<Anime[]>(`/seasons/now?${params}`, signal).then((items) => items.filter(isSfwAnime));
+  return jikanGet<Anime[]>(`/seasons/now?${params}`, signal).then((items) => normalizeAnimeList(items).filter(isSfwAnime));
 }
 
 export function searchAnime(q: string, signal?: AbortSignal) {
   const params = new URLSearchParams({ q, limit: "12" });
-  return jikanGet<Anime[]>(`/anime?${params}`, signal).then((items) => items.filter(isSfwAnime));
+  return jikanGet<Anime[]>(`/anime?${params}`, signal).then((items) => normalizeAnimeList(items).filter(isSfwAnime));
 }
 
 export function getAnimeById(id: number, signal?: AbortSignal) {
-  return jikanGet<Anime>(`/anime/${id}`, signal);
+  return jikanGet<Anime>(`/anime/${id}`, signal).then(normalizeTrailer);
 }

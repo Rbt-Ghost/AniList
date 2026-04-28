@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getOngoingAnime, getTopAnime, searchAnime, type Anime } from "../api/Jikan.ts";
 import AnimeCard from "../components/AnimeCard.tsx";
+import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
@@ -21,21 +22,10 @@ function SkeletonCard() {
   );
 }
 
-function formatTitle(anime: Anime) {
-  return anime.title_english || anime.title;
-}
-
-function getHeroImageUrl(anime: Anime) {
-  return anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url;
-}
-
-function getCardImageUrl(anime: Anime) {
-  return anime.images?.jpg?.image_url;
-}
-
 function FeaturingHero({ items }: { items: Anime[] }) {
   const [index, setIndex] = useState(0);
   const [seed, setSeed] = useState(0);
+  const [bgSrc, setBgSrc] = useState<string | null>(null);
 
   const count = items.length;
   const clampedIndex = count === 0 ? 0 : ((index % count) + count) % count;
@@ -52,9 +42,15 @@ function FeaturingHero({ items }: { items: Anime[] }) {
 
   if (!anime) return null;
 
-  const title = formatTitle(anime);
-  const bgUrl = getHeroImageUrl(anime);
+  const title = formatAnimeTitle(anime);
+  const bgCandidates = getHeroImageCandidates(anime);
+  const bgUrl = bgSrc ?? bgCandidates[0] ?? null;
   const coverUrl = getCardImageUrl(anime);
+
+  useEffect(() => {
+    setBgSrc(bgCandidates[0] ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anime.mal_id, seed]);
 
   const scoreText = anime.score != null ? `${anime.score}` : "—";
   const episodesText = anime.episodes != null ? `${anime.episodes}` : "—";
@@ -75,6 +71,12 @@ function FeaturingHero({ items }: { items: Anime[] }) {
             alt=""
             aria-hidden="true"
             className="absolute inset-0 h-full w-full object-cover"
+            loading="eager"
+            onError={() => {
+              const currentIndex = bgCandidates.indexOf(bgUrl);
+              const next = bgCandidates[currentIndex + 1] ?? null;
+              setBgSrc(next);
+            }}
           />
         ) : null}
 
