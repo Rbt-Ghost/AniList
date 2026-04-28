@@ -15,3 +15,24 @@
 	transform-origin: left;
 	animation: featuring-progress 15s linear forwards;
 }
+
+@keyframes nf-fade-up {
+	from {
+		opacity: 0;
+		transform: translateY(16px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.nf-fade-up {
+	opacity: 0;
+	animation: nf-fade-up 600ms ease-out forwards;
+}
+
+.nf-fade-up-delay {
+	opacity: 0;
+	animation: nf-fade-up 600ms ease-out 140ms forwards;
+}
