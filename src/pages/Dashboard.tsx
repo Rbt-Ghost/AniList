@@ -185,12 +185,12 @@ export default function Dashboard() {
   const [ongoingError, setOngoingError] = useState<string | null>(null);
 
   const [topAnime, setTopAnime] = useState<Anime[]>([]);
-  const [topPage, setTopPage] = useState(1);
   const [topHasNextPage, setTopHasNextPage] = useState(true);
   const [topLoading, setTopLoading] = useState(true);
   const [topLoadingMore, setTopLoadingMore] = useState(false);
   const [topError, setTopError] = useState<string | null>(null);
   const topLoadMoreRef = useRef<HTMLDivElement | null>(null);
+  const nextTopPageRef = useRef(2);
 
   const [results, setResults] = useState<Anime[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -200,39 +200,24 @@ export default function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const firstPage = topPage === 1;
 
     (async () => {
       try {
-        if (firstPage) {
-          setTopLoading(true);
-        } else {
-          setTopLoadingMore(true);
-        }
+        setTopLoading(true);
         setTopError(null);
-        const { items, hasNextPage } = await getTopAnimePage(topPage, TOP_PAGE_SIZE, controller.signal);
+        const { items, hasNextPage } = await getTopAnimePage(1, TOP_PAGE_SIZE, controller.signal);
+        setTopAnime(items);
         setTopHasNextPage(hasNextPage);
-
-        setTopAnime((prev) => {
-          if (firstPage) return items;
-
-          const seen = new Set(prev.map((a) => a.mal_id));
-          const uniqueNewItems = items.filter((a) => !seen.has(a.mal_id));
-          return [...prev, ...uniqueNewItems];
-        });
+        nextTopPageRef.current = 2;
       } catch (e) {
         if (!isAbortError(e)) setTopError((e as Error).message);
       } finally {
-        if (firstPage) {
-          setTopLoading(false);
-        } else {
-          setTopLoadingMore(false);
-        }
+        setTopLoading(false);
       }
     })();
 
     return () => controller.abort();
-  }, [topPage]);
+  }, []);
 
   useEffect(() => {
     if (showingSearch || topLoading || topLoadingMore || topError || !topHasNextPage) return;
@@ -246,7 +231,31 @@ export default function Dashboard() {
         if (!first?.isIntersecting) return;
 
         observer.unobserve(first.target);
-        setTopPage((p) => p + 1);
+
+        const pageToLoad = nextTopPageRef.current;
+        if (pageToLoad < 2) return;
+
+        const controller = new AbortController();
+        setTopLoadingMore(true);
+
+        (async () => {
+          try {
+            const { items, hasNextPage } = await getTopAnimePage(pageToLoad, TOP_PAGE_SIZE, controller.signal);
+            setTopAnime((prev) => {
+              const seen = new Set(prev.map((a) => a.mal_id));
+              const uniqueNewItems = items.filter((a) => !seen.has(a.mal_id));
+              return [...prev, ...uniqueNewItems];
+            });
+            setTopHasNextPage(hasNextPage);
+            nextTopPageRef.current = pageToLoad + 1;
+          } catch (e) {
+            if (!isAbortError(e)) setTopError((e as Error).message);
+          } finally {
+            setTopLoadingMore(false);
+          }
+        })();
+
+        return () => controller.abort();
       },
       { rootMargin: "260px 0px" }
     );

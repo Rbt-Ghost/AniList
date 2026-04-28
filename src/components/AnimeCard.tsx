@@ -21,11 +21,13 @@ export default function AnimeCard({ anime }: Props) {
   const imageUrl = getCardImageUrl(anime);
   const title = formatAnimeTitle(anime);
   const tags = getAnimeTags(anime);
+  const scoreText = anime.score != null ? anime.score.toFixed(1) : "N/A";
+  const episodesText = anime.episodes != null ? String(anime.episodes) : "?";
 
   return (
-    <div className="group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40 shadow-sm backdrop-blur transition hover:shadow-md">
-      <div className="flex">
-        <div className="h-32 w-24 shrink-0 bg-zinc-900">
+    <article className="group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40 shadow-sm backdrop-blur transition duration-200 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-md focus-within:ring-2 focus-within:ring-zinc-600/60">
+      <div className="flex items-stretch">
+        <div className="w-24 shrink-0 self-stretch bg-zinc-900">
           {imageUrl ? (
             <img
               src={imageUrl}
@@ -33,12 +35,27 @@ export default function AnimeCard({ anime }: Props) {
               className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
               loading="lazy"
             />
-          ) : null}
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-zinc-900 to-zinc-800 px-2 text-center text-[11px] font-semibold text-zinc-300">
+              No Cover
+            </div>
+          )}
         </div>
         <div className="min-w-0 flex-1 p-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="min-w-0 truncate text-sm font-semibold text-zinc-50">{title}</div>
+          <div className="flex min-h-full items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h3
+                className="text-sm font-semibold leading-5 text-zinc-50"
+                title={title}
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                {title}
+              </h3>
 
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
                 {anime.year ? (
@@ -61,8 +78,25 @@ export default function AnimeCard({ anime }: Props) {
                     {anime.year}
                   </span>
                 ) : null}
-                {anime.score != null ? <span>★ {anime.score}</span> : <span>★ —</span>}
+                <span className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900/80 px-1.5 py-0.5 text-zinc-200">
+                  ★ {scoreText}
+                </span>
+                <span>{episodesText} eps</span>
               </div>
+
+              {anime.synopsis ? (
+                <p
+                  className="mt-2 text-xs leading-relaxed text-zinc-400"
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {anime.synopsis}
+                </p>
+              ) : null}
 
               {tags.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -80,6 +114,6 @@ export default function AnimeCard({ anime }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
