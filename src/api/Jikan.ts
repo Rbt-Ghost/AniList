@@ -52,7 +52,7 @@ export function getTopAnime(signal?: AbortSignal) {
 }
 
 export function getOngoingAnime(signal?: AbortSignal) {
-  const params = new URLSearchParams({ limit: "12" });
+  const params = new URLSearchParams({ limit: "15" });
   return jikanGet<Anime[]>(`/seasons/now?${params}`, signal).then((items) => items.filter(isSfwAnime));
 }
 
