@@ -105,6 +105,44 @@ async function jikanGetPaged<T>(path: string, signal?: AbortSignal): Promise<{ d
 // Minimal types (expand as you need)
 type NamedResource = { name: string };
 
+export type AnimeRelation = {
+  relation?: string | null;
+  entry?: Array<{
+    mal_id: number;
+    type?: string | null;
+    name: string;
+    url?: string | null;
+  }>;
+};
+
+export type AnimeCharacter = {
+  character: {
+    mal_id: number;
+    name: string;
+    url?: string | null;
+    images?: {
+      jpg?: {
+        image_url?: string | null;
+      };
+    };
+  };
+  role?: string | null;
+  favorites?: number | null;
+  voice_actors?: Array<{
+    person: {
+      mal_id: number;
+      name: string;
+      url?: string | null;
+      images?: {
+        jpg?: {
+          image_url?: string | null;
+        };
+      };
+    };
+    language?: string | null;
+  }>;
+};
+
 export type Anime = {
   mal_id: number;
   rank?: number | null;
@@ -136,6 +174,8 @@ export type Anime = {
   explicit_genres?: NamedResource[];
   themes?: NamedResource[];
   demographics?: NamedResource[];
+  relations?: AnimeRelation[];
+  characters?: AnimeCharacter[];
 };
 
 export function isSfwAnime(anime: Anime): boolean {
@@ -184,5 +224,9 @@ export function searchAnime(q: string, signal?: AbortSignal) {
 }
 
 export function getAnimeById(id: number, signal?: AbortSignal) {
-  return jikanGet<Anime>(`/anime/${id}`, signal).then(normalizeTrailer);
+  return jikanGet<Anime>(`/anime/${id}/full`, signal).then(normalizeTrailer);
+}
+
+export function getAnimeCharacters(id: number, signal?: AbortSignal) {
+  return jikanGet<AnimeCharacter[]>(`/anime/${id}/characters`, signal);
 }

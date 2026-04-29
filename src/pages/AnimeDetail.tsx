@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { getAnimeById, type Anime } from "../api/Jikan.ts";
+import { Link, useParams } from "react-router-dom";
+import { getAnimeById, getAnimeCharacters, type Anime, type AnimeCharacter, type AnimeRelation } from "../api/Jikan.ts";
 import Header from "../components/Header.tsx";
 import SearchResults from "../components/SearchResults.tsx";
 import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
@@ -9,6 +9,32 @@ import NotFound from "./NotFound.tsx";
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+function getRelationEntries(relations: AnimeRelation[] | undefined, relationName: string) {
+  return (relations ?? [])
+    .filter((relation) => relation.relation?.toLowerCase() === relationName.toLowerCase())
+    .flatMap((relation) => relation.entry ?? [])
+    .filter((entry) => entry.type?.toLowerCase() === "anime");
+}
+
+function getCharacterImageUrl(character: AnimeCharacter): string | undefined {
+  return character.character.images?.jpg?.image_url ?? undefined;
+}
+
+function getCharacterVoiceDescription(character: AnimeCharacter): string | null {
+  const voiceActor = character.voice_actors?.[0];
+  const role = character.role ? character.role : null;
+
+  if (voiceActor?.person?.name && voiceActor.language) {
+    return `${role ?? "Character"} - voiced by ${voiceActor.person.name} (${voiceActor.language})`;
+  }
+
+  if (voiceActor?.person?.name) {
+    return `${role ?? "Character"} - voiced by ${voiceActor.person.name}`;
+  }
+
+  return role;
 }
 
 export default function AnimeDetail() {
@@ -34,8 +60,12 @@ export default function AnimeDetail() {
 
     (async () => {
       try {
-        const data = await getAnimeById(Number(id), controller.signal);
-        setAnime(data);
+        const animeId = Number(id);
+        const [data, characters] = await Promise.all([
+          getAnimeById(animeId, controller.signal),
+          getAnimeCharacters(animeId, controller.signal).catch(() => []),
+        ]);
+        setAnime({ ...data, characters });
       } catch (e) {
         if (!isAbortError(e)) {
           setError((e as Error).message);
@@ -64,6 +94,11 @@ export default function AnimeDetail() {
   const coverUrl = getCardImageUrl(anime);
   const scoreText = anime.score != null ? anime.score.toFixed(1) : "N/A";
   const episodesText = anime.episodes != null ? String(anime.episodes) : "?";
+  const prequels = getRelationEntries(anime.relations, "prequel");
+  const sequels = getRelationEntries(anime.relations, "sequel");
+  const importantCharacters = [...(anime.characters ?? [])]
+    .sort((left, right) => (right.favorites ?? 0) - (left.favorites ?? 0))
+    .slice(0, 6);
 
   const handleQueryChange = (next: string) => {
     setQuery(next);
@@ -178,33 +213,115 @@ export default function AnimeDetail() {
 
             {/* Details Section */}
             <div className="space-y-6">
-              {/* Main Content */}
-              <div className="space-y-6">
-                {/* Synopsis */}
-                {anime.synopsis ? (
-                  <section className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 xs:p-5 sm:p-6 backdrop-blur">
-                    <h3 className="text-lg font-semibold mb-3">Synopsis</h3>
-                    <p className="text-sm xs:text-base text-zinc-300/90 leading-relaxed">{anime.synopsis}</p>
-                  </section>
-                ) : null}
+              {anime.synopsis ? (
+                <section className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 xs:p-5 sm:p-6 backdrop-blur">
+                  <h3 className="text-lg font-semibold mb-3">Synopsis</h3>
+                  <p className="text-sm xs:text-base text-zinc-300/90 leading-relaxed">{anime.synopsis}</p>
+                </section>
+              ) : null}
 
-                {/* Trailer */}
-                {anime.trailer?.youtube_id ? (
-                  <section className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 xs:p-5 sm:p-6 backdrop-blur overflow-hidden">
-                    <h3 className="text-lg font-semibold mb-4">Trailer</h3>
-                    <div className="relative aspect-video bg-zinc-900 rounded-lg overflow-hidden">
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        src={`https://www.youtube-nocookie.com/embed/${anime.trailer.youtube_id}`}
-                        title="Anime Trailer"
-                        allowFullScreen
-                        className="absolute inset-0"
-                      />
-                    </div>
-                  </section>
-                ) : null}
-              </div>
+              {prequels.length > 0 || sequels.length > 0 ? (
+                <section className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 xs:p-5 sm:p-6 backdrop-blur">
+                  <h3 className="text-lg font-semibold mb-4">Related Anime</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {prequels.length > 0 ? (
+                      <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                        <h4 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Prequel</h4>
+                        <div className="mt-3 space-y-2">
+                          {prequels.map((entry) => (
+                            <Link
+                              key={`prequel-${entry.mal_id}`}
+                              to={`/anime/${entry.mal_id}`}
+                              className="block rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-900"
+                            >
+                              {entry.name}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {sequels.length > 0 ? (
+                      <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                        <h4 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Sequel</h4>
+                        <div className="mt-3 space-y-2">
+                          {sequels.map((entry) => (
+                            <Link
+                              key={`sequel-${entry.mal_id}`}
+                              to={`/anime/${entry.mal_id}`}
+                              className="block rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-900"
+                            >
+                              {entry.name}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+
+              {anime.trailer?.youtube_id ? (
+                <section className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 xs:p-5 sm:p-6 backdrop-blur overflow-hidden">
+                  <h3 className="text-lg font-semibold mb-4">Trailer</h3>
+                  <div className="relative aspect-video bg-zinc-900 rounded-lg overflow-hidden">
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      src={`https://www.youtube-nocookie.com/embed/${anime.trailer.youtube_id}`}
+                      title="Anime Trailer"
+                      allowFullScreen
+                      className="absolute inset-0"
+                    />
+                  </div>
+                </section>
+              ) : null}
+
+              {importantCharacters.length > 0 ? (
+                <section className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 xs:p-5 sm:p-6 backdrop-blur">
+                  <div className="flex items-end justify-between gap-4">
+                    <h3 className="text-lg font-semibold">Important Characters</h3>
+                    <span className="text-xs uppercase tracking-wide text-zinc-500">
+                      Top {importantCharacters.length} by favorites
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {importantCharacters.map((character) => {
+                      const imageUrl = getCharacterImageUrl(character);
+                      const description = getCharacterVoiceDescription(character);
+
+                      return (
+                        <article key={character.character.mal_id} className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/70">
+                          <div className="flex gap-4 p-4">
+                            <div className="h-24 w-20 shrink-0 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
+                              {imageUrl ? (
+                                <img
+                                  src={imageUrl}
+                                  alt={character.character.name}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : null}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-semibold text-zinc-50">{character.character.name}</h4>
+                              {description ? (
+                                <p className="mt-1 text-xs leading-relaxed text-zinc-400">{description}</p>
+                              ) : null}
+
+                              {character.favorites != null ? (
+                                <p className="mt-2 text-xs text-zinc-500">{character.favorites.toLocaleString()} favorites</p>
+                              ) : null}
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
             </div>
           </div>
         )}
