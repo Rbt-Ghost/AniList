@@ -26,6 +26,7 @@ function SkeletonCard() {
 
 export default function Dashboard() {
   const [query, setQuery] = useState("");
+  const [hasUserScrolled, setHasUserScrolled] = useState(false);
 
   const [ongoingAnime, setOngoingAnime] = useState<Anime[]>([]);
   const [ongoingLoading, setOngoingLoading] = useState(true);
@@ -44,6 +45,15 @@ export default function Dashboard() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const trimmedQuery = query.trim();
   const showingSearch = trimmedQuery.length > 0;
+
+  useEffect(() => {
+    const markScrolled = () => {
+      setHasUserScrolled(true);
+    };
+
+    window.addEventListener("scroll", markScrolled, { passive: true });
+    return () => window.removeEventListener("scroll", markScrolled);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,7 +77,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (showingSearch || topLoading || topLoadingMore || topError || !topHasNextPage) return;
+    if (showingSearch || topLoading || topLoadingMore || topError || !topHasNextPage || !hasUserScrolled) return;
 
     const target = topLoadMoreRef.current;
     if (!target) return;
@@ -109,7 +119,7 @@ export default function Dashboard() {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [showingSearch, topLoading, topLoadingMore, topError, topHasNextPage]);
+  }, [showingSearch, topLoading, topLoadingMore, topError, topHasNextPage, hasUserScrolled]);
 
   useEffect(() => {
     const controller = new AbortController();
