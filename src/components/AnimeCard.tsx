@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import type { Anime } from "../api/Jikan.ts";
 import { formatAnimeTitle, getCardImageUrl } from "../utils/animeMedia.ts";
 
@@ -18,14 +19,22 @@ function getAnimeTags(anime: Anime): string[] {
 }
 
 export default function AnimeCard({ anime }: Props) {
+  const navigate = useNavigate();
   const imageUrl = getCardImageUrl(anime);
   const title = formatAnimeTitle(anime);
   const tags = getAnimeTags(anime);
   const scoreText = anime.score != null ? anime.score.toFixed(1) : "N/A";
   const episodesText = anime.episodes != null ? String(anime.episodes) : "?";
 
+  const handleClick = () => {
+    navigate(`/anime/${anime.mal_id}`);
+  };
+
   return (
-    <article className="group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40 shadow-sm backdrop-blur transition duration-200 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-md focus-within:ring-2 focus-within:ring-zinc-600/60">
+    <article 
+      onClick={handleClick}
+      className="group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40 shadow-sm backdrop-blur transition duration-200 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-md focus-within:ring-2 focus-within:ring-zinc-600/60 cursor-pointer"
+    >
       <div className="flex items-stretch">
         <div className="w-24 shrink-0 self-stretch bg-zinc-900">
           {imageUrl ? (

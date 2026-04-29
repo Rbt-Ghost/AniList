@@ -5,6 +5,7 @@ import LoadingPage from "./pages/Loading.tsx";
 
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const PeakFiction = lazy(() => import("./pages/PeakFiction.tsx"));
+const AnimeDetail = lazy(() => import("./pages/AnimeDetail.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
     <Suspense fallback={<LoadingPage />}>
       <Routes>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/anime/:id" element={<AnimeDetail />} />
         <Route path="/peak-fiction" element={<PeakFiction />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

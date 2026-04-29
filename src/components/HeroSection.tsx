@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { Anime } from "../api/Jikan.ts";
 import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
 
 export default function HeroSection({ items }: { items: Anime[] }) {
+  const navigate = useNavigate();
   const [index, setIndex] = useState(0);
   const [seed, setSeed] = useState(0);
   const [bgSrc, setBgSrc] = useState<string | null>(null);
@@ -46,8 +48,12 @@ export default function HeroSection({ items }: { items: Anime[] }) {
   const bottomFacts = allFacts.slice(0, 4);
   const mobileBottomFacts = allFacts.slice(0, 2);
 
+  const handleCardClick = () => {
+    navigate(`/anime/${anime.mal_id}`);
+  };
+
   return (
-    <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-sm">
+    <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-sm cursor-pointer" onClick={handleCardClick}>
       <div className="relative h-56 xs:h-64 sm:h-80 md:h-135">
         {bgUrl ? (
           <img
@@ -130,7 +136,7 @@ export default function HeroSection({ items }: { items: Anime[] }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 justify-end md:justify-start shrink-0">
+            <div className="flex items-center gap-2 justify-end md:justify-start shrink-0" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => {
