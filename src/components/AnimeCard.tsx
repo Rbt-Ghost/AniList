@@ -24,7 +24,7 @@ export default function AnimeCard({ anime, onSelect }: Props) {
   const imageUrl = getCardImageUrl(anime);
   const title = formatAnimeTitle(anime);
   const tags = getAnimeTags(anime);
-  const scoreText = anime.score != null ? anime.score.toFixed(1) : "N/A";
+  const scoreText = anime.score != null ? anime.score.toFixed(2) : "N/A";
   const episodesText = anime.episodes != null ? String(anime.episodes) : "?";
 
   const handleClick = () => {

@@ -125,7 +125,7 @@ export default function AnimeDetail() {
   const bgCandidates = getHeroImageCandidates(anime);
   const bgUrl = bgCandidates[0] ?? null;
   const coverUrl = getCardImageUrl(anime);
-  const scoreText = anime.score != null ? anime.score.toFixed(1) : "N/A";
+  const scoreText = anime.score != null ? anime.score.toFixed(2) : "N/A";
   const episodesText = anime.episodes != null ? String(anime.episodes) : "?";
   const importantCharacters = [...(anime.characters ?? [])]
     .sort((left, right) => (right.favorites ?? 0) - (left.favorites ?? 0))
@@ -198,19 +198,9 @@ export default function AnimeDetail() {
                               {episodesText} episodes
                             </span>
                           ) : null}
-                          {anime.status ? (
-                            <span className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2 xs:px-2.5 py-1 text-xs text-zinc-200 whitespace-nowrap">
-                              {anime.status}
-                            </span>
-                          ) : null}
                           {anime.year != null ? (
                             <span className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2 xs:px-2.5 py-1 text-xs text-zinc-200 whitespace-nowrap">
                               {anime.year}
-                            </span>
-                          ) : null}
-                          {anime.rating ? (
-                            <span className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2 xs:px-2.5 py-1 text-xs text-zinc-200 whitespace-nowrap">
-                              {anime.rating}
                             </span>
                           ) : null}
                         </div>
