@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { getAnimeById, type Anime } from "../api/Jikan.ts";
+import Header from "../components/Header.tsx";
+import SearchResults from "../components/SearchResults.tsx";
 import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
 import LoadingPage from "./Loading.tsx";
 import NotFound from "./NotFound.tsx";
@@ -11,12 +13,17 @@ function isAbortError(error: unknown): boolean {
 
 export default function AnimeDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [anime, setAnime] = useState<Anime | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const showingSearch = query.trim().length > 0;
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setAnime(null);
+
     if (!id || isNaN(Number(id))) {
       setError("Invalid anime ID");
       setLoading(false);
@@ -27,8 +34,6 @@ export default function AnimeDetail() {
 
     (async () => {
       try {
-        setLoading(true);
-        setError(null);
         const data = await getAnimeById(Number(id), controller.signal);
         setAnime(data);
       } catch (e) {
@@ -36,7 +41,9 @@ export default function AnimeDetail() {
           setError((e as Error).message);
         }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     })();
 
@@ -58,25 +65,27 @@ export default function AnimeDetail() {
   const scoreText = anime.score != null ? anime.score.toFixed(1) : "N/A";
   const episodesText = anime.episodes != null ? String(anime.episodes) : "?";
 
+  const handleQueryChange = (next: string) => {
+    setQuery(next);
+  };
+
+  const handleClearQuery = () => {
+    setQuery("");
+  };
+
   return (
     <div className="min-h-screen bg-linear-to-b from-zinc-950 to-zinc-950 text-zinc-50">
-      <header className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/60 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center">
-          <button
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900/50 transition-colors"
-            aria-label="Go back"
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-            Back
-          </button>
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-        </div>
-      </header>
+      <Header query={query} onQueryChange={handleQueryChange} onClearQuery={handleClearQuery} />
 
       <main className="mx-auto max-w-5xl px-6 py-8">
+        {showingSearch ? (
+          <section>
+            <div className="flex items-end justify-between gap-4">
+              <h2 className="text-lg font-semibold">Search Results</h2>
+            </div>
+            <SearchResults query={query} />
+          </section>
+        ) : (
         <div className="space-y-8">
           {/* Hero Section */}
           <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-sm">
@@ -253,6 +262,7 @@ export default function AnimeDetail() {
             </div>
           </div>
         </div>
+        )}
       </main>
     </div>
   );
