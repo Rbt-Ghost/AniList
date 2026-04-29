@@ -4,6 +4,7 @@ import { formatAnimeTitle, getCardImageUrl } from "../utils/animeMedia.ts";
 
 type Props = {
   anime: Anime;
+  onSelect?: (anime: Anime) => void;
 };
 
 function getAnimeTags(anime: Anime): string[] {
@@ -18,7 +19,7 @@ function getAnimeTags(anime: Anime): string[] {
   return Array.from(new Set(tags)).slice(0, 3);
 }
 
-export default function AnimeCard({ anime }: Props) {
+export default function AnimeCard({ anime, onSelect }: Props) {
   const navigate = useNavigate();
   const imageUrl = getCardImageUrl(anime);
   const title = formatAnimeTitle(anime);
@@ -27,6 +28,7 @@ export default function AnimeCard({ anime }: Props) {
   const episodesText = anime.episodes != null ? String(anime.episodes) : "?";
 
   const handleClick = () => {
+    onSelect?.(anime);
     navigate(`/anime/${anime.mal_id}`);
   };
 

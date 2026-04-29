@@ -6,6 +6,7 @@ type SearchResultsProps = {
   query: string;
   debounceMs?: number;
   emptyMessage?: string;
+  onSelect?: (anime: Anime) => void;
 };
 
 function isAbortError(error: unknown): boolean {
@@ -31,6 +32,7 @@ export default function SearchResults({
   query,
   debounceMs = 350,
   emptyMessage = "No matches yet. Try a different title.",
+  onSelect,
 }: SearchResultsProps) {
   const [results, setResults] = useState<Anime[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -93,7 +95,7 @@ export default function SearchResults({
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {results.map((a) => (
-            <AnimeCard key={a.mal_id} anime={a} />
+            <AnimeCard key={a.mal_id} anime={a} onSelect={onSelect} />
           ))}
         </div>
       )}

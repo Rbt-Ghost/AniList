@@ -198,7 +198,7 @@ export default function Dashboard() {
             </div>
 
             {showingSearch ? (
-              <SearchResults query={query} />
+              <SearchResults query={query} onSelect={handleClearQuery} />
             ) : (
               <div className="mt-4">
                 {topError ? (
