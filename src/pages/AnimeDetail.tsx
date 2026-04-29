@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getAnimeById, getAnimeCharacters, type Anime, type AnimeCharacter, type AnimeRelation } from "../api/Jikan.ts";
+import { getAnimeById, getAnimeCharacters } from "../api/Jikan.ts";
+import type { Anime, AnimeCharacter, AnimeRelation } from "../api/Jikan.ts";
 import AnimeCard from "../components/AnimeCard.tsx";
 import Header from "../components/Header.tsx";
 import SearchResults from "../components/SearchResults.tsx";
