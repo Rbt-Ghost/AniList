@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { getAnimeById, getAnimeCharacters, type Anime, type AnimeCharacter, type AnimeRelation } from "../api/Jikan.ts";
+import AnimeCard from "../components/AnimeCard.tsx";
 import Header from "../components/Header.tsx";
 import SearchResults from "../components/SearchResults.tsx";
 import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
@@ -40,6 +41,10 @@ function getCharacterVoiceDescription(character: AnimeCharacter): string | null 
 export default function AnimeDetail() {
   const { id } = useParams<{ id: string }>();
   const [anime, setAnime] = useState<Anime | null>(null);
+  const [relatedAnime, setRelatedAnime] = useState<{ prequel: Anime | null; sequel: Anime | null }>({
+    prequel: null,
+    sequel: null,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -80,6 +85,31 @@ export default function AnimeDetail() {
     return () => controller.abort();
   }, [id]);
 
+  useEffect(() => {
+    setRelatedAnime({ prequel: null, sequel: null });
+
+    if (!anime) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const prequelId = getRelationEntries(anime.relations, "prequel")[0]?.mal_id ?? null;
+    const sequelId = getRelationEntries(anime.relations, "sequel")[0]?.mal_id ?? null;
+
+    (async () => {
+      const [prequel, sequel] = await Promise.all([
+        prequelId ? getAnimeById(prequelId, controller.signal).catch(() => null) : Promise.resolve(null),
+        sequelId ? getAnimeById(sequelId, controller.signal).catch(() => null) : Promise.resolve(null),
+      ]);
+
+      if (!controller.signal.aborted) {
+        setRelatedAnime({ prequel, sequel });
+      }
+    })();
+
+    return () => controller.abort();
+  }, [anime]);
+
   if (loading) {
     return <LoadingPage />;
   }
@@ -94,8 +124,6 @@ export default function AnimeDetail() {
   const coverUrl = getCardImageUrl(anime);
   const scoreText = anime.score != null ? anime.score.toFixed(1) : "N/A";
   const episodesText = anime.episodes != null ? String(anime.episodes) : "?";
-  const prequels = getRelationEntries(anime.relations, "prequel");
-  const sequels = getRelationEntries(anime.relations, "sequel");
   const importantCharacters = [...(anime.characters ?? [])]
     .sort((left, right) => (right.favorites ?? 0) - (left.favorites ?? 0))
     .slice(0, 6);
@@ -220,41 +248,20 @@ export default function AnimeDetail() {
                 </section>
               ) : null}
 
-              {prequels.length > 0 || sequels.length > 0 ? (
+              {relatedAnime.prequel || relatedAnime.sequel ? (
                 <section className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 xs:p-5 sm:p-6 backdrop-blur">
-                  <h3 className="text-lg font-semibold mb-4">Related Anime</h3>
                   <div className="grid gap-4 md:grid-cols-2">
-                    {prequels.length > 0 ? (
-                      <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                    {relatedAnime.prequel ? (
+                      <div className="space-y-3">
                         <h4 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Prequel</h4>
-                        <div className="mt-3 space-y-2">
-                          {prequels.map((entry) => (
-                            <Link
-                              key={`prequel-${entry.mal_id}`}
-                              to={`/anime/${entry.mal_id}`}
-                              className="block rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-900"
-                            >
-                              {entry.name}
-                            </Link>
-                          ))}
-                        </div>
+                        <AnimeCard anime={relatedAnime.prequel} />
                       </div>
                     ) : null}
 
-                    {sequels.length > 0 ? (
-                      <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                    {relatedAnime.sequel ? (
+                      <div className="space-y-3">
                         <h4 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Sequel</h4>
-                        <div className="mt-3 space-y-2">
-                          {sequels.map((entry) => (
-                            <Link
-                              key={`sequel-${entry.mal_id}`}
-                              to={`/anime/${entry.mal_id}`}
-                              className="block rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-900"
-                            >
-                              {entry.name}
-                            </Link>
-                          ))}
-                        </div>
+                        <AnimeCard anime={relatedAnime.sequel} />
                       </div>
                     ) : null}
                   </div>
