@@ -280,7 +280,7 @@ export default function AnimeDetail() {
               {importantCharacters.length > 0 ? (
                 <section className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 xs:p-5 sm:p-6 backdrop-blur">
                   <div className="flex items-end justify-between gap-4">
-                    <h3 className="text-lg font-semibold">Important Characters</h3>
+                    <h3 className="text-lg font-semibold">Cast</h3>
                     <span className="text-xs uppercase tracking-wide text-zinc-500">
                       Top {importantCharacters.length} by favorites
                     </span>
