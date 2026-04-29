@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { searchAnime, type Anime } from "../api/Jikan.ts";
 import AnimeCard from "./AnimeCard.tsx";
+import { SkeletonCard } from "./SkeletonCard.tsx";
+import { handleAsyncError } from "../utils/errors.ts";
 
 type SearchResultsProps = {
   query: string;
@@ -8,25 +10,6 @@ type SearchResultsProps = {
   emptyMessage?: string;
   onSelect?: (anime: Anime) => void;
 };
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
-}
-
-function SkeletonCard() {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-sm">
-      <div className="flex animate-pulse">
-        <div className="h-32 w-24 shrink-0 bg-zinc-900" />
-        <div className="flex-1 p-3">
-          <div className="h-4 w-3/4 rounded bg-zinc-900" />
-          <div className="mt-2 h-3 w-1/2 rounded bg-zinc-900" />
-          <div className="mt-4 h-7 w-16 rounded bg-zinc-900" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function SearchResults({
   query,
@@ -57,7 +40,7 @@ export default function SearchResults({
           const data = await searchAnime(trimmedQuery, controller.signal);
           setResults(data);
         } catch (e) {
-          if (!isAbortError(e)) setSearchError((e as Error).message);
+          handleAsyncError(e, setSearchError);
         } finally {
           if (!controller.signal.aborted) {
             setSearchLoading(false);

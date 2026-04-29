@@ -6,12 +6,9 @@ import AnimeCard from "../components/AnimeCard.tsx";
 import Header from "../components/Header.tsx";
 import SearchResults from "../components/SearchResults.tsx";
 import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
+import { isAbortError, handleAsyncError } from "../utils/errors.ts";
 import LoadingPage from "./Loading.tsx";
 import NotFound from "./NotFound.tsx";
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
-}
 
 function getRelationEntries(relations: AnimeRelation[] | undefined, relationName: string) {
   return (relations ?? [])
@@ -73,9 +70,7 @@ export default function AnimeDetail() {
         ]);
         setAnime({ ...data, characters });
       } catch (e) {
-        if (!isAbortError(e)) {
-          setError((e as Error).message);
-        }
+        handleAsyncError(e, setError);
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -98,13 +93,20 @@ export default function AnimeDetail() {
     const sequelId = getRelationEntries(anime.relations, "sequel")[0]?.mal_id ?? null;
 
     (async () => {
-      const [prequel, sequel] = await Promise.all([
-        prequelId ? getAnimeById(prequelId, controller.signal).catch(() => null) : Promise.resolve(null),
-        sequelId ? getAnimeById(sequelId, controller.signal).catch(() => null) : Promise.resolve(null),
-      ]);
+      try {
+        const [prequel, sequel] = await Promise.all([
+          prequelId ? getAnimeById(prequelId, controller.signal).catch(() => null) : Promise.resolve(null),
+          sequelId ? getAnimeById(sequelId, controller.signal).catch(() => null) : Promise.resolve(null),
+        ]);
 
-      if (!controller.signal.aborted) {
-        setRelatedAnime({ prequel, sequel });
+        if (!controller.signal.aborted) {
+          setRelatedAnime({ prequel, sequel });
+        }
+      } catch (e) {
+        // Silently ignore related anime fetch errors
+        if (!isAbortError(e)) {
+          console.debug("Failed to fetch related anime", e);
+        }
       }
     })();
 
