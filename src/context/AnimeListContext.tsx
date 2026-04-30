@@ -1,10 +1,11 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Anime } from "../api/Jikan.ts";
 
-export const ANIME_LIST_STATUSES = ["plan-to-watch", "watching", "completed"] as const;
-export type AnimeListStatus = (typeof ANIME_LIST_STATUSES)[number];
+const ANIME_LIST_STATUSES = ["plan-to-watch", "watching", "completed"] as const;
+type AnimeListStatus = (typeof ANIME_LIST_STATUSES)[number];
 
-export const ANIME_LIST_STATUS_LABELS: Record<AnimeListStatus, string> = {
+const ANIME_LIST_STATUS_LABELS: Record<AnimeListStatus, string> = {
   "plan-to-watch": "Plan to watch",
   watching: "Watching",
   completed: "Completed",
@@ -23,18 +24,24 @@ const MAL_SCORE_LABELS: Record<number, string> = {
   1: "Appalling",
 };
 
-export const ANIME_LIST_SCORE_OPTIONS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((score) => ({
+const ANIME_LIST_SCORE_OPTIONS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((score) => ({
   value: score,
   label: `${score} - ${MAL_SCORE_LABELS[score]}`,
 }));
 
-export type AnimeListEntry = {
+// Export types for external use
+export type { AnimeListStatus };
+export { ANIME_LIST_STATUSES, ANIME_LIST_STATUS_LABELS, ANIME_LIST_SCORE_OPTIONS };
+
+type AnimeListEntry = {
   anime: Anime;
   status: AnimeListStatus;
   watchedEpisodes: number;
   score: number | null;
   updatedAt: number;
 };
+
+export type { AnimeListEntry };
 
 type AnimeListInput = {
   status: AnimeListStatus;

@@ -22,17 +22,20 @@ export default function HeroSection({ items }: { items: Anime[] }) {
     return () => window.clearInterval(id);
   }, [count, seed]);
 
+  useEffect(() => {
+    if (!anime) return;
+    const bgCandidates = getHeroImageCandidates(anime);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBgSrc(bgCandidates[0] ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anime.mal_id, seed]);
+
   if (!anime) return null;
 
   const title = formatAnimeTitle(anime);
   const bgCandidates = getHeroImageCandidates(anime);
   const bgUrl = bgSrc ?? bgCandidates[0] ?? null;
   const coverUrl = getCardImageUrl(anime);
-
-  useEffect(() => {
-    setBgSrc(bgCandidates[0] ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anime.mal_id, seed]);
 
   const scoreText = anime.score != null ? `${anime.score}` : "—";
   const episodesText = anime.episodes != null ? `${anime.episodes}` : "—";

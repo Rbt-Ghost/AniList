@@ -53,15 +53,17 @@ export default function AnimeDetail() {
   const showingSearch = query.trim().length > 0;
 
   useEffect(() => {
+    if (!id || isNaN(Number(id))) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setError("Invalid anime ID");
+      setLoading(false);
+      setAnime(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setAnime(null);
-
-    if (!id || isNaN(Number(id))) {
-      setError("Invalid anime ID");
-      setLoading(false);
-      return;
-    }
 
     const controller = new AbortController();
 
@@ -86,9 +88,9 @@ export default function AnimeDetail() {
   }, [id]);
 
   useEffect(() => {
-    setRelatedAnime({ prequel: null, sequel: null });
-
     if (!anime) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRelatedAnime({ prequel: null, sequel: null });
       return;
     }
 

@@ -69,12 +69,8 @@ export default function AnimeListPage() {
 
   const trimmedQuery = query.trim();
   const showingSearch = trimmedQuery.length > 0;
-
-  if (!isAnimeListStatus(status)) {
-    return <NotFound />;
-  }
-
-  const items = getEntriesByStatus(status);
+  const items = getEntriesByStatus(isAnimeListStatus(status) ? status : "plan-to-watch");
+  
   const sortedItems = useMemo(() => {
     const nextItems = [...items];
 
@@ -88,6 +84,10 @@ export default function AnimeListPage() {
         return nextItems.sort((left, right) => right.updatedAt - left.updatedAt);
     }
   }, [items, sortBy]);
+
+  if (!isAnimeListStatus(status)) {
+    return <NotFound />;
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-b from-zinc-950 to-zinc-950 text-zinc-50">

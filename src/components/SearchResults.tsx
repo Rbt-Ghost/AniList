@@ -25,9 +25,6 @@ export default function SearchResults({
 
   useEffect(() => {
     if (!showingSearch) {
-      setResults([]);
-      setSearchLoading(false);
-      setSearchError(null);
       return;
     }
 
@@ -55,7 +52,9 @@ export default function SearchResults({
     };
   }, [debounceMs, showingSearch, trimmedQuery]);
 
-  if (!showingSearch) return null;
+  if (!showingSearch) {
+    return null;
+  }
 
   const isOutage = searchError ? isTemporaryApiOutage(searchError) : false;
 

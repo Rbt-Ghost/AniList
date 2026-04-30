@@ -18,9 +18,9 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
   const { getEntry, saveAnime, removeAnime } = useAnimeList();
   const existingEntry = getEntry(anime.mal_id);
 
-  const [status, setStatus] = useState<AnimeListStatus>(existingEntry?.status ?? "plan-to-watch");
-  const [watchedEpisodes, setWatchedEpisodes] = useState(0);
-  const [score, setScore] = useState<number | "">("");
+  const [status, setStatus] = useState<AnimeListStatus>(() => existingEntry?.status ?? "plan-to-watch");
+  const [watchedEpisodes, setWatchedEpisodes] = useState(() => existingEntry?.watchedEpisodes ?? 0);
+  const [score, setScore] = useState<number | "">(() => existingEntry?.score ?? "");
 
   const totalEpisodes = anime.episodes ?? null;
   const canIncrementEpisodes = totalEpisodes == null || watchedEpisodes < totalEpisodes;
@@ -62,14 +62,6 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
 
-    setStatus(existingEntry?.status ?? "plan-to-watch");
-    setWatchedEpisodes(existingEntry?.watchedEpisodes ?? 0);
-    setScore(existingEntry?.score ?? "");
-  }, [existingEntry?.score, existingEntry?.status, existingEntry?.watchedEpisodes, open]);
-
-  useEffect(() => {
-    if (!open) return;
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
@@ -83,6 +75,7 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
   useEffect(() => {
     if (status !== "completed") return;
     if (totalEpisodes == null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWatchedEpisodes(totalEpisodes);
   }, [status, totalEpisodes]);
 
