@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getAnimeById } from "../api/Jikan.ts";
+import { getAnimeById, getAnimeCharacters } from "../api/Jikan.ts";
 import type { Anime, AnimeCharacter, AnimeRelation } from "../api/Jikan.ts";
 import AnimeCard from "../components/AnimeCard.tsx";
 import AnimeListDialog from "../components/AnimeListDialog.tsx";
@@ -70,8 +70,11 @@ export default function AnimeDetail() {
     (async () => {
       try {
         const animeId = Number(id);
-        const data = await getAnimeById(animeId, controller.signal);
-        setAnime(data);
+        const [data, characters] = await Promise.all([
+          getAnimeById(animeId, controller.signal),
+          getAnimeCharacters(animeId, controller.signal).catch(() => []),
+        ]);
+        setAnime({ ...data, characters });
       } catch (e) {
         handleAsyncError(e, setError);
       } finally {
