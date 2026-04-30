@@ -54,7 +54,7 @@ export default function HeroSection({ items }: { items: Anime[] }) {
 
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-sm cursor-pointer" onClick={handleCardClick}>
-      <div className="relative h-56 xs:h-64 sm:h-80 md:h-135">
+      <div className="relative h-48 xs:h-56 sm:h-80 md:h-135">
         {bgUrl ? (
           <img
             src={bgUrl}
@@ -75,7 +75,7 @@ export default function HeroSection({ items }: { items: Anime[] }) {
         <div className="absolute inset-x-0 bottom-0 p-3 xs:p-4 sm:p-5 md:p-6">
           <div className="flex flex-col gap-3 xs:gap-4 md:flex-row md:items-end md:justify-between">
             <div className="flex gap-3 xs:gap-4 min-w-0">
-              <div className="h-24 w-18 xs:h-28 xs:w-20 sm:h-32 sm:w-24 md:h-36 md:w-28 shrink-0 overflow-hidden rounded-xl xs:rounded-2xl border border-zinc-800 bg-zinc-900">
+              <div className="h-20 w-16 xs:h-24 xs:w-18 sm:h-32 sm:w-24 md:h-36 md:w-28 shrink-0 overflow-hidden rounded-xl xs:rounded-2xl border border-zinc-800 bg-zinc-900">
                 {coverUrl ? (
                   <img src={coverUrl} alt={title} className="h-full w-full object-cover" />
                 ) : null}

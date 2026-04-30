@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { ANIME_LIST_STATUS_LABELS, useAnimeList } from "../context/AnimeListContext.tsx";
 
 type HeaderProps = {
   query: string;
@@ -13,6 +14,7 @@ export default function Header({
 }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { getEntriesByStatus } = useAnimeList();
 
   const handleGoHome = () => {
     if (location.pathname === "/") {
@@ -67,6 +69,42 @@ export default function Header({
                   Clear
                 </button>
               ) : null}
+            </div>
+          </div>
+
+          <div className="group relative w-full sm:w-auto">
+            <button
+              type="button"
+              className="inline-flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-700 hover:bg-zinc-900 sm:w-40"
+            >
+              <span>My AniList</span>
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+
+            <div className="invisible absolute right-0 top-full z-20 mt-0 w-full min-w-72 opacity-0 transition duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 sm:w-80">
+              <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
+                {(["plan-to-watch", "watching", "completed"] as const).map((status) => {
+                  const items = getEntriesByStatus(status);
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => navigate(`/lists/${status}`)}
+                      className="flex w-full items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 text-left transition last:border-b-0 hover:bg-zinc-900"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-zinc-50">{ANIME_LIST_STATUS_LABELS[status]}</div>
+                        <div className="text-xs text-zinc-500">Open the list to track your {ANIME_LIST_STATUS_LABELS[status].toLowerCase()} anime</div>
+                      </div>
+                      <span className="shrink-0 rounded-full border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                        {items.length}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

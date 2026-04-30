@@ -3,12 +3,14 @@ import { useParams } from "react-router-dom";
 import { getAnimeById, getAnimeCharacters } from "../api/Jikan.ts";
 import type { Anime, AnimeCharacter, AnimeRelation } from "../api/Jikan.ts";
 import AnimeCard from "../components/AnimeCard.tsx";
+import AnimeListDialog from "../components/AnimeListDialog.tsx";
 import Header from "../components/Header.tsx";
 import SearchResults from "../components/SearchResults.tsx";
 import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
 import { isAbortError, handleAsyncError } from "../utils/errors.ts";
 import LoadingPage from "./Loading.tsx";
 import NotFound from "./NotFound.tsx";
+import { useAnimeList } from "../context/AnimeListContext.tsx";
 
 function getRelationEntries(relations: AnimeRelation[] | undefined, relationName: string) {
   return (relations ?? [])
@@ -38,6 +40,7 @@ function getCharacterVoiceDescription(character: AnimeCharacter): string | null 
 
 export default function AnimeDetail() {
   const { id } = useParams<{ id: string }>();
+  const { getEntry } = useAnimeList();
   const [anime, setAnime] = useState<Anime | null>(null);
   const [relatedAnime, setRelatedAnime] = useState<{ prequel: Anime | null; sequel: Anime | null }>({
     prequel: null,
@@ -46,6 +49,7 @@ export default function AnimeDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [listDialogOpen, setListDialogOpen] = useState(false);
   const showingSearch = query.trim().length > 0;
 
   useEffect(() => {
@@ -130,6 +134,7 @@ export default function AnimeDetail() {
   const importantCharacters = [...(anime.characters ?? [])]
     .sort((left, right) => (right.favorites ?? 0) - (left.favorites ?? 0))
     .slice(0, 6);
+  const listEntry = getEntry(anime.mal_id);
 
   const handleQueryChange = (next: string) => {
     setQuery(next);
@@ -182,7 +187,7 @@ export default function AnimeDetail() {
                           {title}
                         </h2>
 
-                        <div className="mt-3 xs:mt-4 flex flex-wrap gap-2">
+                        <div className="mt-3 xs:mt-4 hidden md:flex flex-wrap gap-2">
                           {anime.score != null ? (
                             <span className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900/80 px-2 xs:px-2.5 py-1 text-xs xs:text-sm text-zinc-200">
                               ★ {scoreText}
@@ -204,33 +209,91 @@ export default function AnimeDetail() {
                             </span>
                           ) : null}
                         </div>
-
-                        {(anime.genres && anime.genres.length > 0) || (anime.themes && anime.themes.length > 0) ? (
-                          <div className="mt-3 xs:mt-4 flex flex-wrap gap-2">
-                            {anime.genres?.map((g) => (
-                              <span
-                                key={`genre-${g.name}`}
-                                className="rounded-full border border-zinc-800 bg-zinc-900/80 px-3 py-1 text-xs xs:text-sm font-medium text-zinc-200"
-                              >
-                                {g.name}
-                              </span>
-                            ))}
-                            {anime.themes?.map((t) => (
-                              <span
-                                key={`theme-${t.name}`}
-                                className="rounded-full border border-zinc-700 bg-zinc-800/50 px-3 py-1 text-xs xs:text-sm font-medium text-zinc-300"
-                              >
-                                {t.name}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
+                        <div className="mt-3 hidden md:flex flex-wrap gap-2">
+                          {anime.genres?.map((g) => (
+                            <span
+                              key={`genre-desktop-${g.name}`}
+                              className="rounded-full border border-zinc-800 bg-zinc-900/80 px-3 py-1 text-xs xs:text-sm font-medium text-zinc-200"
+                            >
+                              {g.name}
+                            </span>
+                          ))}
+                          {anime.themes?.map((t) => (
+                            <span
+                              key={`theme-desktop-${t.name}`}
+                              className="rounded-full border border-zinc-700 bg-zinc-800/50 px-3 py-1 text-xs xs:text-sm font-medium text-zinc-300"
+                            >
+                              {t.name}
+                            </span>
+                          ))}
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="mt-3 md:mt-0 flex w-full md:w-auto items-center justify-start md:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setListDialogOpen(true)}
+                        className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-zinc-700 bg-zinc-950/80 px-4 py-2 text-sm font-semibold text-zinc-50 shadow-lg shadow-black/20 backdrop-blur transition hover:border-zinc-500 hover:bg-zinc-900"
+                      >
+                        <span className="text-lg leading-none">+</span>
+                        <span>{listEntry ? "Update my list" : "Add to my list"}</span>
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Hero metadata (score, rank, episodes, year, genres/themes) */}
+            <section className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 xs:p-5 sm:p-6 backdrop-blur md:hidden">
+              <div className="flex flex-wrap items-center gap-2">
+                {anime.score != null ? (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900/80 px-2 xs:px-2.5 py-1 text-xs xs:text-sm text-zinc-200">
+                    ★ {scoreText}
+                  </span>
+                ) : null}
+
+                {anime.rank != null ? (
+                  <span className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2 xs:px-2.5 py-1 text-xs text-zinc-200 whitespace-nowrap">
+                    Rank #{anime.rank}
+                  </span>
+                ) : null}
+
+                {anime.episodes != null ? (
+                  <span className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2 xs:px-2.5 py-1 text-xs text-zinc-200 whitespace-nowrap">
+                    {episodesText} episodes
+                  </span>
+                ) : null}
+
+                {anime.year != null ? (
+                  <span className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2 xs:px-2.5 py-1 text-xs text-zinc-200 whitespace-nowrap">
+                    {anime.year}
+                  </span>
+                ) : null}
+              </div>
+
+              {(anime.genres && anime.genres.length > 0) || (anime.themes && anime.themes.length > 0) ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {anime.genres?.map((g) => (
+                    <span
+                      key={`genre-${g.name}`}
+                      className="rounded-full border border-zinc-800 bg-zinc-900/80 px-3 py-1 text-xs xs:text-sm font-medium text-zinc-200"
+                    >
+                      {g.name}
+                    </span>
+                  ))}
+                  {anime.themes?.map((t) => (
+                    <span
+                      key={`theme-${t.name}`}
+                      className="rounded-full border border-zinc-700 bg-zinc-800/50 px-3 py-1 text-xs xs:text-sm font-medium text-zinc-300"
+                    >
+                      {t.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </section>
 
             {/* Details Section */}
             <div className="space-y-6">
@@ -326,6 +389,8 @@ export default function AnimeDetail() {
           </div>
         )}
       </main>
+
+      {anime ? <AnimeListDialog anime={anime} open={listDialogOpen} onClose={() => setListDialogOpen(false)} /> : null}
     </div>
   );
 }
