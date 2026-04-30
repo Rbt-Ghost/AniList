@@ -28,6 +28,37 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [scoreMenuOpen, setScoreMenuOpen] = useState(false);
 
+  const getScorePreviewClass = (value: number | "") => {
+    if (value === "") {
+      return "border-zinc-500 bg-zinc-400/30 shadow-[0_0_6px_rgba(161,161,170,0.18)]";
+    }
+
+    switch (value) {
+      case 10:
+        return "border-amber-300/70 bg-amber-300/20 shadow-[0_0_6px_rgba(252,211,77,0.14)]";
+      case 9:
+        return "border-lime-300/70 bg-lime-300/20 shadow-[0_0_6px_rgba(190,242,100,0.14)]";
+      case 8:
+        return "border-emerald-300/70 bg-emerald-300/20 shadow-[0_0_6px_rgba(110,231,183,0.14)]";
+      case 7:
+        return "border-cyan-300/70 bg-cyan-300/20 shadow-[0_0_6px_rgba(103,232,249,0.14)]";
+      case 6:
+        return "border-sky-300/70 bg-sky-300/20 shadow-[0_0_6px_rgba(125,211,252,0.14)]";
+      case 5:
+        return "border-violet-300/70 bg-violet-300/20 shadow-[0_0_6px_rgba(196,181,253,0.14)]";
+      case 4:
+        return "border-fuchsia-300/70 bg-fuchsia-300/20 shadow-[0_0_6px_rgba(240,171,252,0.14)]";
+      case 3:
+        return "border-orange-300/70 bg-orange-300/20 shadow-[0_0_6px_rgba(253,186,116,0.14)]";
+      case 2:
+        return "border-rose-300/70 bg-rose-300/20 shadow-[0_0_6px_rgba(252,165,165,0.14)]";
+      case 1:
+        return "border-red-300/70 bg-red-300/20 shadow-[0_0_6px_rgba(248,113,113,0.14)]";
+      default:
+        return "border-zinc-500 bg-zinc-400/30 shadow-[0_0_6px_rgba(161,161,170,0.18)]";
+    }
+  };
+
   useEffect(() => {
     if (!open) return;
 
@@ -232,7 +263,10 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
                     >
                       <div className="flex items-center justify-between">
                         <span>Not scored</span>
-                        {score === "" ? <span className="text-xs text-zinc-400">Selected</span> : null}
+                        <span className="flex items-center gap-2">
+                          {score === "" ? <span className="text-xs text-zinc-400">Selected</span> : null}
+                          <span className={`h-3 w-3 rounded-full border ${getScorePreviewClass("")}`} aria-hidden="true" />
+                        </span>
                       </div>
                     </button>
 
@@ -250,7 +284,10 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
                       >
                         <div className="flex items-center justify-between gap-3">
                           <span>{option.label}</span>
-                          {score === option.value ? <span className="text-xs text-zinc-400">Selected</span> : null}
+                          <span className="flex items-center gap-2">
+                            {score === option.value ? <span className="text-xs text-zinc-400">Selected</span> : null}
+                            <span className={`h-3 w-3 rounded-full border ${getScorePreviewClass(option.value)}`} aria-hidden="true" />
+                          </span>
                         </div>
                       </button>
                     ))}
