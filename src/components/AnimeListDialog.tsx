@@ -26,6 +26,7 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
   const canIncrementEpisodes = totalEpisodes == null || watchedEpisodes < totalEpisodes;
 
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [scoreMenuOpen, setScoreMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -92,7 +93,7 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
         onClick={onClose}
       />
 
-      <section className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/40">
+      <section className="relative w-full max-w-2xl overflow-visible rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/40">
         <div className="border-b border-zinc-800 px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -195,21 +196,68 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
               </div>
             </div>
 
-            <label className="block space-y-2 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
               <span className="block text-sm font-medium text-zinc-200">Score</span>
-              <select
-                value={score}
-                onChange={(event) => setScore(event.target.value === "" ? "" : Number(event.target.value))}
-                className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-50 outline-none transition focus:border-zinc-600"
-              >
-                <option value="">Not scored</option>
-                {ANIME_LIST_SCORE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <div className="relative mt-2">
+                <button
+                  type="button"
+                  onClick={() => setScoreMenuOpen((s) => !s)}
+                  aria-haspopup="listbox"
+                  aria-expanded={scoreMenuOpen}
+                  className="flex w-full items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-50 outline-none transition focus:border-zinc-600"
+                >
+                  <span className="truncate">
+                    {score === "" ? "Not scored" : ANIME_LIST_SCORE_OPTIONS.find((option) => option.value === score)?.label ?? "Not scored"}
+                  </span>
+                  <svg className="ml-3 h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="none" aria-hidden>
+                    <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {scoreMenuOpen ? (
+                  <div
+                    role="listbox"
+                    tabIndex={-1}
+                    className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 py-2 shadow-lg"
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={score === ""}
+                      onClick={() => {
+                        setScore("");
+                        setScoreMenuOpen(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm ${score === "" ? "bg-zinc-900 font-semibold text-zinc-50" : "text-zinc-200 hover:bg-zinc-900"}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Not scored</span>
+                        {score === "" ? <span className="text-xs text-zinc-400">Selected</span> : null}
+                      </div>
+                    </button>
+
+                    {ANIME_LIST_SCORE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={score === option.value}
+                        onClick={() => {
+                          setScore(option.value);
+                          setScoreMenuOpen(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm ${score === option.value ? "bg-zinc-900 font-semibold text-zinc-50" : "text-zinc-200 hover:bg-zinc-900"}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span>{option.label}</span>
+                          {score === option.value ? <span className="text-xs text-zinc-400">Selected</span> : null}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
 
           {existingEntry ? (
