@@ -19,6 +19,21 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
+ * Detect a backend outage from Jikan-style error messages.
+ */
+export function isTemporaryApiOutage(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  return message.includes("jikan 500") || message.includes("internal server error") || message.includes("connectiontimeoutexception");
+}
+
+/**
+ * Standard copy for temporary service outages.
+ */
+export function getTemporaryApiOutageMessage(): string {
+  return "AniList is temporarily down because the anime API is returning an Internal Server Error. Please try again in a few minutes.";
+}
+
+/**
  * Hook-friendly async error handler that filters abort errors
  */
 export function handleAsyncError(error: unknown, onError: (message: string) => void): void {

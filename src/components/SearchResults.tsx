@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { searchAnime, type Anime } from "../api/Jikan.ts";
 import AnimeCard from "./AnimeCard.tsx";
 import { SkeletonCard } from "./SkeletonCard.tsx";
-import { handleAsyncError } from "../utils/errors.ts";
+import { getTemporaryApiOutageMessage, handleAsyncError, isTemporaryApiOutage } from "../utils/errors.ts";
 
 type SearchResultsProps = {
   query: string;
@@ -57,11 +57,17 @@ export default function SearchResults({
 
   if (!showingSearch) return null;
 
+  const isOutage = searchError ? isTemporaryApiOutage(searchError) : false;
+
   return (
     <div className="mt-4">
       {searchError ? (
-        <div className="rounded-2xl border border-red-900/50 bg-red-950/40 p-4 text-sm text-red-100">
-          {searchError}
+        <div className="rounded-3xl border border-red-900/50 bg-red-950/50 p-5 text-sm text-red-100 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">Temporary outage</div>
+          <p className="mt-2 text-base font-semibold text-red-50">
+            {isOutage ? getTemporaryApiOutageMessage() : searchError}
+          </p>
+          {isOutage ? <p className="mt-2 text-sm text-red-200/90">The upstream anime API is currently failing with an Internal Server Error.</p> : null}
         </div>
       ) : null}
 

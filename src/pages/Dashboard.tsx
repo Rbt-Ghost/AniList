@@ -5,7 +5,7 @@ import Header from "../components/Header.tsx";
 import HeroSection from "../components/HeroSection.tsx";
 import SearchResults from "../components/SearchResults.tsx";
 import { SkeletonCard } from "../components/SkeletonCard.tsx";
-import { isAbortError } from "../utils/errors.ts";
+import { getTemporaryApiOutageMessage, isAbortError } from "../utils/errors.ts";
 
 const TOP_PAGE_SIZE = 20;
 
@@ -139,8 +139,10 @@ export default function Dashboard() {
           {!showingSearch ? (
             <section>
               {ongoingError ? (
-                <div className="rounded-2xl border border-red-900/50 bg-red-950/40 p-4 text-sm text-red-100">
-                  {ongoingError}
+                <div className="rounded-3xl border border-red-900/50 bg-red-950/50 p-5 text-sm text-red-100 shadow-sm">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">Temporary outage</div>
+                  <p className="mt-2 text-base font-semibold text-red-50">{getTemporaryApiOutageMessage()}</p>
+                  <p className="mt-2 text-sm text-red-200/90">{ongoingError}</p>
                 </div>
               ) : ongoingLoading ? (
                 <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-sm">
@@ -185,8 +187,10 @@ export default function Dashboard() {
             ) : (
               <div className="mt-4">
                 {topError ? (
-                  <div className="rounded-2xl border border-red-900/50 bg-red-950/40 p-4 text-sm text-red-100">
-                    {topError}
+                  <div className="rounded-3xl border border-red-900/50 bg-red-950/50 p-5 text-sm text-red-100 shadow-sm">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">Temporary outage</div>
+                    <p className="mt-2 text-base font-semibold text-red-50">{getTemporaryApiOutageMessage()}</p>
+                    <p className="mt-2 text-sm text-red-200/90">{topError}</p>
                   </div>
                 ) : null}
 
