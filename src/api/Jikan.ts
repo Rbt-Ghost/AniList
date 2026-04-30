@@ -2,6 +2,10 @@
 const DEFAULT_BASE = "https://api.jikan.moe/v4";
 const BASE = import.meta.env.VITE_JIKAN_BASE_URL ?? DEFAULT_BASE;
 
+// Simple cache for anime by ID (prevents refetching during navigation)
+const animeCache = new Map<number, Anime>();
+const MAX_CACHE_SIZE = 50;
+
 type JikanEnvelope<T> = { data: T };
 type JikanPagedEnvelope<T> = {
   data: T;
@@ -76,6 +80,18 @@ function dedupeAnimeById(items: Anime[]) {
 
 function normalizeAnimeList(items: Anime[]) {
   return dedupeAnimeById(items.map(normalizeTrailer));
+}
+
+function cacheAnime(anime: Anime): void {
+  if (animeCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = animeCache.keys().next().value;
+    if (firstKey !== undefined) animeCache.delete(firstKey);
+  }
+  animeCache.set(anime.mal_id, anime);
+}
+
+function getCachedAnime(id: number): Anime | undefined {
+  return animeCache.get(id);
 }
 
 async function jikanGet<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -224,7 +240,15 @@ export function searchAnime(q: string, signal?: AbortSignal) {
 }
 
 export function getAnimeById(id: number, signal?: AbortSignal) {
-  return jikanGet<Anime>(`/anime/${id}/full`, signal).then(normalizeTrailer);
+  const cached = getCachedAnime(id);
+  if (cached) {
+    return Promise.resolve(normalizeTrailer(cached));
+  }
+  return jikanGet<Anime>(`/anime/${id}/full`, signal).then((anime) => {
+    const normalized = normalizeTrailer(anime);
+    cacheAnime(normalized);
+    return normalized;
+  });
 }
 
 export function getAnimeCharacters(id: number, signal?: AbortSignal) {

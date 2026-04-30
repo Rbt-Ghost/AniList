@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getAnimeById, getAnimeCharacters } from "../api/Jikan.ts";
+import { getAnimeById } from "../api/Jikan.ts";
 import type { Anime, AnimeCharacter, AnimeRelation } from "../api/Jikan.ts";
 import AnimeCard from "../components/AnimeCard.tsx";
 import AnimeListDialog from "../components/AnimeListDialog.tsx";
@@ -70,11 +70,8 @@ export default function AnimeDetail() {
     (async () => {
       try {
         const animeId = Number(id);
-        const [data, characters] = await Promise.all([
-          getAnimeById(animeId, controller.signal),
-          getAnimeCharacters(animeId, controller.signal).catch(() => []),
-        ]);
-        setAnime({ ...data, characters });
+        const data = await getAnimeById(animeId, controller.signal);
+        setAnime(data);
       } catch (e) {
         handleAsyncError(e, setError);
       } finally {
@@ -97,6 +94,12 @@ export default function AnimeDetail() {
     const controller = new AbortController();
     const prequelId = getRelationEntries(anime.relations, "prequel")[0]?.mal_id ?? null;
     const sequelId = getRelationEntries(anime.relations, "sequel")[0]?.mal_id ?? null;
+
+    // Skip fetching if no related anime IDs exist
+    if (!prequelId && !sequelId) {
+      setRelatedAnime({ prequel: null, sequel: null });
+      return () => controller.abort();
+    }
 
     (async () => {
       try {

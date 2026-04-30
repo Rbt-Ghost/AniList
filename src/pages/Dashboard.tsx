@@ -8,6 +8,7 @@ import { SkeletonCard } from "../components/SkeletonCard.tsx";
 import { getTemporaryApiOutageMessage, isAbortError } from "../utils/errors.ts";
 
 const TOP_PAGE_SIZE = 20;
+const PAGINATION_DEBOUNCE_MS = 800; // Prevent rapid pagination requests
 
 export default function Dashboard() {
   const [query, setQuery] = useState("");
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const [topError, setTopError] = useState<string | null>(null);
   const topLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const nextTopPageRef = useRef(2);
+  const lastPaginationTimeRef = useRef(0);
 
   const trimmedQuery = query.trim();
   const showingSearch = trimmedQuery.length > 0;
@@ -73,6 +75,11 @@ export default function Dashboard() {
 
         const pageToLoad = nextTopPageRef.current;
         if (pageToLoad < 2) return;
+
+        // Debounce pagination requests to prevent queue overflow
+        const now = Date.now();
+        if (now - lastPaginationTimeRef.current < PAGINATION_DEBOUNCE_MS) return;
+        lastPaginationTimeRef.current = now;
 
         const controller = new AbortController();
         setTopLoadingMore(true);
