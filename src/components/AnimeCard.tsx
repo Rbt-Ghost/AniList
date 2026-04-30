@@ -27,11 +27,30 @@ export default function AnimeCard({ anime, onSelect, userScore }: Props) {
   const effectiveUserScore = userScore !== undefined ? userScore : contextEntry?.score ?? null;
 
   function scoreToClasses(score: number) {
-    if (score >= 9) return "border-amber-300/70 text-amber-200 bg-transparent shadow-[0_0_5px_rgba(252,211,77,0.16)]";
-    if (score >= 8) return "border-emerald-300/70 text-emerald-200 bg-transparent shadow-[0_0_5px_rgba(110,231,183,0.16)]";
-    if (score >= 6) return "border-yellow-300/70 text-yellow-200 bg-transparent shadow-[0_0_5px_rgba(253,224,71,0.16)]";
-    if (score >= 4) return "border-orange-300/70 text-orange-200 bg-transparent shadow-[0_0_5px_rgba(253,186,116,0.16)]";
-    return "border-red-300/70 text-red-200 bg-transparent shadow-[0_0_5px_rgba(252,165,165,0.16)]";
+    switch (score) {
+      case 10:
+        return "border-amber-300/70 text-amber-200 bg-transparent shadow-[0_0_5px_rgba(252,211,77,0.16)]";
+      case 9:
+        return "border-lime-300/70 text-lime-200 bg-transparent shadow-[0_0_5px_rgba(190,242,100,0.16)]";
+      case 8:
+        return "border-emerald-300/70 text-emerald-200 bg-transparent shadow-[0_0_5px_rgba(110,231,183,0.16)]";
+      case 7:
+        return "border-cyan-300/70 text-cyan-200 bg-transparent shadow-[0_0_5px_rgba(103,232,249,0.16)]";
+      case 6:
+        return "border-sky-300/70 text-sky-200 bg-transparent shadow-[0_0_5px_rgba(125,211,252,0.16)]";
+      case 5:
+        return "border-violet-300/70 text-violet-200 bg-transparent shadow-[0_0_5px_rgba(196,181,253,0.16)]";
+      case 4:
+        return "border-fuchsia-300/70 text-fuchsia-200 bg-transparent shadow-[0_0_5px_rgba(240,171,252,0.16)]";
+      case 3:
+        return "border-orange-300/70 text-orange-200 bg-transparent shadow-[0_0_5px_rgba(253,186,116,0.16)]";
+      case 2:
+        return "border-rose-300/70 text-rose-200 bg-transparent shadow-[0_0_5px_rgba(252,165,165,0.16)]";
+      case 1:
+        return "border-red-300/70 text-red-200 bg-transparent shadow-[0_0_5px_rgba(248,113,113,0.16)]";
+      default:
+        return "border-zinc-300/70 text-zinc-200 bg-transparent shadow-[0_0_5px_rgba(228,228,231,0.12)]";
+    }
   }
   const navigate = useNavigate();
   const imageUrl = getCardImageUrl(anime);
