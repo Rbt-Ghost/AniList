@@ -40,7 +40,7 @@ export default function HeroSection({ items }: { items: Anime[] }) {
   const scoreText = anime.score != null ? `${anime.score}` : "—";
   const episodesText = anime.episodes != null ? `${anime.episodes}` : "—";
 
-  // Show fewer facts on mobile
+  // Consolidate facts
   const allFacts = [
     { label: "Score", value: scoreText },
     { label: "Episodes", value: episodesText },
@@ -49,7 +49,6 @@ export default function HeroSection({ items }: { items: Anime[] }) {
   ];
   
   const bottomFacts = allFacts.slice(0, 4);
-  const mobileBottomFacts = allFacts.slice(0, 2);
 
   const handleCardClick = () => {
     navigate(`/anime/${anime.mal_id}`);
@@ -112,30 +111,17 @@ export default function HeroSection({ items }: { items: Anime[] }) {
                   </p>
                 ) : null}
 
-                <div className="mt-2 xs:mt-3 flex flex-wrap gap-1.5 xs:gap-2">
-                  {mobileBottomFacts.map((f) => (
+                {/* Hidden on mobile, flex on sm and larger */}
+                <div className="hidden sm:flex mt-2 flex-wrap gap-2">
+                  {bottomFacts.map((f) => (
                     <span
                       key={f.label}
-                      className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2 xs:px-2.5 py-0.5 xs:py-1 text-xs text-zinc-200 whitespace-nowrap"
+                      className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2.5 py-1 text-xs text-zinc-200 whitespace-nowrap"
                     >
                       <span className="text-zinc-400">{f.label}:</span> {f.value}
                     </span>
                   ))}
                 </div>
-
-                {/* Show additional facts on larger screens */}
-                {bottomFacts.length > 2 ? (
-                  <div className="hidden sm:flex mt-2 flex-wrap gap-2">
-                    {bottomFacts.slice(2).map((f) => (
-                      <span
-                        key={f.label}
-                        className="rounded-full border border-zinc-800 bg-zinc-950/40 px-2.5 py-1 text-xs text-zinc-200"
-                      >
-                        <span className="text-zinc-400">{f.label}:</span> {f.value}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             </div>
 
