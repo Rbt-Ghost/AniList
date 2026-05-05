@@ -183,7 +183,8 @@ export default function AnimeDetail() {
 
                 <div className="absolute inset-x-0 bottom-0 p-3 xs:p-4 sm:p-5 md:p-6">
                   <div className="flex flex-col gap-3 xs:gap-4 md:flex-row md:items-end md:justify-between">
-                    <div className="flex gap-3 xs:gap-4 min-w-0">
+                    {/* Added items-end for mobile and md:items-start for desktop */}
+                    <div className="flex items-end md:items-start gap-3 xs:gap-4 min-w-0">
                       <div className="h-28 w-20 xs:h-32 xs:w-24 sm:h-36 sm:w-28 shrink-0 overflow-hidden rounded-xl xs:rounded-2xl border border-zinc-800 bg-zinc-900">
                         {coverUrl ? (
                           <img src={coverUrl} alt={title} className="h-full w-full object-cover" />
@@ -191,7 +192,7 @@ export default function AnimeDetail() {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <h2 className="text-xl xs:text-2xl sm:text-3xl font-semibold tracking-tight leading-tight">
+                        <h2 className="text-lg xs:text-xl sm:text-2xl font-semibold tracking-tight leading-tight">
                           {title}
                         </h2>
 
