@@ -5,13 +5,16 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { AnimeListProvider } from './context/AnimeListContext.tsx'
+import { AuthProvider } from './context/AuthContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AnimeListProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </AnimeListProvider>
+    <AuthProvider>
+      <AnimeListProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AnimeListProvider>
+    </AuthProvider>
   </StrictMode>,
 )

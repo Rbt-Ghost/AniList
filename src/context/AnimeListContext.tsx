@@ -1,6 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import type { Anime } from "../api/Jikan.ts";
+import { db } from "../firebase/firebase.ts";
+import { useAuth } from "./AuthContext.tsx";
 
 const ANIME_LIST_STATUSES = ["plan-to-watch", "watching", "completed"] as const;
 type AnimeListStatus = (typeof ANIME_LIST_STATUSES)[number];
@@ -58,8 +61,13 @@ type AnimeListContextValue = {
 };
 
 const STORAGE_KEY = "anilist:list-state:v1";
+const FIRESTORE_VERSION = 1;
 
 const AnimeListContext = createContext<AnimeListContextValue | null>(null);
+
+function sanitizeForStorage<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 function clampEpisodes(watchedEpisodes: number, totalEpisodes?: number | null) {
   const safeWatched = Number.isFinite(watchedEpisodes) ? Math.max(0, Math.floor(watchedEpisodes)) : 0;
@@ -88,7 +96,38 @@ function normalizeStatus(status: string | null | undefined): AnimeListStatus {
   return "plan-to-watch";
 }
 
-function readInitialEntries(): AnimeListEntry[] {
+function readEntriesFromUnknown(rawEntries: unknown): AnimeListEntry[] {
+  if (!Array.isArray(rawEntries)) return [];
+
+  return rawEntries
+    .map((entry): AnimeListEntry | null => {
+      if (!entry || typeof entry !== "object") return null;
+
+      const candidate = entry as Partial<AnimeListEntry> & { anime?: Partial<Anime> };
+      if (!candidate.anime?.mal_id || !candidate.anime?.title) return null;
+
+      return {
+        anime: candidate.anime as Anime,
+        status: normalizeStatus(candidate.status),
+        watchedEpisodes: clampEpisodes(candidate.watchedEpisodes ?? 0, candidate.anime.episodes),
+        score: normalizeScore(candidate.score ?? null),
+        updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : Date.now(),
+      };
+    })
+    .filter((entry): entry is AnimeListEntry => entry !== null)
+    .reduce<AnimeListEntry[]>((acc, entry) => {
+      const existingIndex = acc.findIndex((candidate) => candidate.anime.mal_id === entry.anime.mal_id);
+      if (existingIndex >= 0) {
+        acc[existingIndex] = entry;
+        return acc;
+      }
+
+      acc.push(entry);
+      return acc;
+    }, []);
+}
+
+function readGuestEntries(): AnimeListEntry[] {
   if (typeof window === "undefined") {
     return [];
   }
@@ -98,46 +137,108 @@ function readInitialEntries(): AnimeListEntry[] {
     if (!raw) return [];
 
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .map((entry): AnimeListEntry | null => {
-        if (!entry || typeof entry !== "object") return null;
-
-        const candidate = entry as Partial<AnimeListEntry> & { anime?: Partial<Anime> };
-        if (!candidate.anime?.mal_id || !candidate.anime?.title) return null;
-
-        return {
-          anime: candidate.anime as Anime,
-          status: normalizeStatus(candidate.status),
-          watchedEpisodes: clampEpisodes(candidate.watchedEpisodes ?? 0, candidate.anime.episodes),
-          score: normalizeScore(candidate.score ?? null),
-          updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : Date.now(),
-        };
-      })
-      .filter((entry): entry is AnimeListEntry => entry !== null)
-      .reduce<AnimeListEntry[]>((acc, entry) => {
-        const existingIndex = acc.findIndex((candidate) => candidate.anime.mal_id === entry.anime.mal_id);
-        if (existingIndex >= 0) {
-          acc[existingIndex] = entry;
-          return acc;
-        }
-
-        acc.push(entry);
-        return acc;
-      }, []);
+    return readEntriesFromUnknown(parsed);
   } catch {
     return [];
   }
 }
 
+function toStoredAnime(anime: Anime): Anime {
+  const stored: Partial<Anime> = {
+    mal_id: anime.mal_id,
+    title: anime.title,
+    title_english: anime.title_english,
+    title_japanese: anime.title_japanese,
+    images: anime.images,
+    trailer: anime.trailer,
+    synopsis: anime.synopsis,
+    score: anime.score,
+    episodes: anime.episodes,
+    status: anime.status,
+    rating: anime.rating,
+    year: anime.year,
+    season: anime.season,
+    studios: anime.studios,
+    genres: anime.genres,
+    themes: anime.themes,
+    demographics: anime.demographics,
+    explicit_genres: anime.explicit_genres,
+  };
+
+  return sanitizeForStorage(stored) as Anime;
+}
+
+async function persistUserEntries(uid: string, entries: AnimeListEntry[]) {
+  try {
+    const ref = doc(db, "users", uid, "animeList", "state");
+    const storedEntries = entries.map((entry) => ({
+      ...entry,
+      anime: toStoredAnime(entry.anime),
+    }));
+
+    await setDoc(
+      ref,
+      {
+        version: FIRESTORE_VERSION,
+        updatedAt: Date.now(),
+        entries: sanitizeForStorage(storedEntries),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.error("Failed to persist AniList entries to Firestore", e);
+  }
+}
+
 export function AnimeListProvider({ children }: { children: ReactNode }) {
-  const [entries, setEntries] = useState<AnimeListEntry[]>(() => readInitialEntries());
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
+
+  const [guestEntries, setGuestEntries] = useState<AnimeListEntry[]>(() => readGuestEntries());
+  const [userEntries, setUserEntries] = useState<AnimeListEntry[]>([]);
+  const clearedGuestForUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  }, [entries]);
+
+    // Persist only guest lists to localStorage.
+    if (uid) return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(guestEntries));
+  }, [guestEntries, uid]);
+
+  useEffect(() => {
+    if (!uid) return;
+
+    // When a user logs in: clear guest storage and switch to per-user Firestore storage.
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+
+    if (clearedGuestForUserRef.current !== uid) {
+      clearedGuestForUserRef.current = uid;
+      setGuestEntries([]);
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUserEntries([]);
+
+    const ref = doc(db, "users", uid, "animeList", "state");
+    const unsubscribe = onSnapshot(
+      ref,
+      (snap) => {
+        const data = snap.data() as { entries?: unknown } | undefined;
+        const next = readEntriesFromUnknown(data?.entries);
+        setUserEntries(next);
+      },
+      (error) => {
+        console.error("Failed to load AniList entries from Firestore", error);
+      }
+    );
+
+    return unsubscribe;
+  }, [uid]);
+
+  const entries = uid ? userEntries : guestEntries;
 
   const value = useMemo<AnimeListContextValue>(() => {
     return {
@@ -148,7 +249,7 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
           .filter((entry) => entry.status === status)
           .sort((left, right) => right.updatedAt - left.updatedAt),
       saveAnime: (anime, input) => {
-        setEntries((current) => {
+        const update = (current: AnimeListEntry[]) => {
           const normalizedScore = normalizeScore(input.score);
           const watchedEpisodes = clampEpisodes(
             input.status === "completed" ? anime.episodes ?? input.watchedEpisodes : input.watchedEpisodes,
@@ -158,7 +259,8 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
           const nextEntry: AnimeListEntry = {
             anime,
             status: input.status,
-            watchedEpisodes: input.status === "completed" && typeof anime.episodes === "number" ? anime.episodes : watchedEpisodes,
+            watchedEpisodes:
+              input.status === "completed" && typeof anime.episodes === "number" ? anime.episodes : watchedEpisodes,
             score: normalizedScore,
             updatedAt: Date.now(),
           };
@@ -166,13 +268,33 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
           const nextEntries = current.filter((entry) => entry.anime.mal_id !== anime.mal_id);
           nextEntries.push(nextEntry);
           return nextEntries;
-        });
+        };
+
+        if (uid) {
+          setUserEntries((current) => {
+            const next = update(current);
+            void persistUserEntries(uid, next);
+            return next;
+          });
+          return;
+        }
+
+        setGuestEntries((current) => update(current));
       },
       removeAnime: (animeId) => {
-        setEntries((current) => current.filter((entry) => entry.anime.mal_id !== animeId));
+        if (uid) {
+          setUserEntries((current) => {
+            const next = current.filter((entry) => entry.anime.mal_id !== animeId);
+            void persistUserEntries(uid, next);
+            return next;
+          });
+          return;
+        }
+
+        setGuestEntries((current) => current.filter((entry) => entry.anime.mal_id !== animeId));
       },
     };
-  }, [entries]);
+  }, [entries, uid]);
 
   return <AnimeListContext.Provider value={value}>{children}</AnimeListContext.Provider>;
 }
