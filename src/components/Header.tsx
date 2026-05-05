@@ -24,7 +24,10 @@ export default function Header({
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement | null>(null);
+  
+  // We use two refs because the menu is rendered twice (once for mobile, once for PC)
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+  const desktopMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!userMenuOpen) return;
@@ -32,8 +35,12 @@ export default function Header({
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (!target) return;
-      if (!userMenuRef.current) return;
-      if (userMenuRef.current.contains(target)) return;
+      if (
+        mobileMenuRef.current?.contains(target) || 
+        desktopMenuRef.current?.contains(target)
+      ) {
+        return;
+      }
 
       setUserMenuOpen(false);
     };
@@ -90,6 +97,55 @@ export default function Header({
     }
   };
 
+  // Extract the auth block to reuse it in both mobile and desktop layouts
+  const renderAuth = (ref: React.RefObject<HTMLDivElement | null>) => {
+    return user ? (
+      <div className="relative shrink-0" ref={ref}>
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={userMenuOpen}
+          onClick={() => setUserMenuOpen((current) => !current)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-50 transition hover:bg-zinc-900"
+          aria-label="Open account menu"
+        >
+          {userInitial}
+        </button>
+
+        {userMenuOpen ? (
+          <div className="absolute right-0 top-full z-30 mt-2 w-56">
+            <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={accountBusy}
+                className="flex w-full items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 text-left text-sm text-zinc-200 transition last:border-b-0 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Logout
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={accountBusy}
+                className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-sm text-red-200 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Delete account
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setAuthDialogOpen(true)}
+        className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-700 hover:bg-zinc-900"
+      >
+        Log in
+      </button>
+    );
+  };
+
   return (
     <>
       <header className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/60 backdrop-blur">
@@ -113,51 +169,10 @@ export default function Header({
               </div>
             </button>
 
-            {user ? (
-              <div className="relative shrink-0" ref={userMenuRef}>
-                <button
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={userMenuOpen}
-                  onClick={() => setUserMenuOpen((current) => !current)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-50 transition hover:bg-zinc-900"
-                  aria-label="Open account menu"
-                >
-                  {userInitial}
-                </button>
-
-                {userMenuOpen ? (
-                  <div className="absolute right-0 top-full z-30 mt-2 w-56">
-                    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        disabled={accountBusy}
-                        className="flex w-full items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 text-left text-sm text-zinc-200 transition last:border-b-0 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Logout
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDeleteAccount}
-                        disabled={accountBusy}
-                        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-sm text-red-200 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Delete account
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setAuthDialogOpen(true)}
-                className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-700 hover:bg-zinc-900"
-              >
-                Log in
-              </button>
-            )}
+            {/* Mobile Auth - Visible only on mobile (< sm breakpoint) */}
+            <div className="sm:hidden flex shrink-0">
+              {renderAuth(mobileMenuRef)}
+            </div>
           </div>
 
           <div className="flex w-full items-center gap-3 sm:flex-1 sm:min-w-0 sm:justify-end">
@@ -229,6 +244,11 @@ export default function Header({
                   })}
                 </div>
               </div>
+            </div>
+
+            {/* Desktop Auth - Hidden on mobile, visible on sm and larger */}
+            <div className="hidden sm:flex shrink-0">
+              {renderAuth(desktopMenuRef)}
             </div>
           </div>
         </div>
