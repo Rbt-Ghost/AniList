@@ -76,7 +76,8 @@ export default function HeroSection({ items }: { items: Anime[] }) {
 
         <div className="absolute inset-x-0 bottom-0 p-3 xs:p-4 sm:p-5 md:p-6">
           <div className="flex flex-col gap-3 xs:gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="flex gap-3 xs:gap-4 min-w-0">
+            {/* Added items-end right here to keep the image anchored to the bottom */}
+            <div className="flex items-end gap-3 xs:gap-4 min-w-0">
               <div className="h-20 w-16 xs:h-24 xs:w-18 sm:h-32 sm:w-24 md:h-36 md:w-28 shrink-0 overflow-hidden rounded-xl xs:rounded-2xl border border-zinc-800 bg-zinc-900">
                 {coverUrl ? (
                   <img src={coverUrl} alt={title} className="h-full w-full object-cover" />
