@@ -17,6 +17,9 @@ export default function Dashboard() {
   const [ongoingAnime, setOngoingAnime] = useState<Anime[]>([]);
   const [ongoingLoading, setOngoingLoading] = useState(true);
   const [ongoingError, setOngoingError] = useState<string | null>(null);
+  
+  // Added a state flag to know when Hero fetch is complete
+  const [heroInitialFetchDone, setHeroInitialFetchDone] = useState(false);
 
   const [topAnime, setTopAnime] = useState<Anime[]>([]);
   const [topHasNextPage, setTopHasNextPage] = useState(true);
@@ -39,7 +42,32 @@ export default function Dashboard() {
     return () => window.removeEventListener("scroll", markScrolled);
   }, []);
 
+  // 1. Fetch Ongoing Anime First (Priority)
   useEffect(() => {
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        setOngoingLoading(true);
+        setOngoingError(null);
+        const data = await getOngoingAnime(controller.signal);
+        setOngoingAnime(data);
+      } catch (e) {
+        if (!isAbortError(e)) setOngoingError((e as Error).message);
+      } finally {
+        setOngoingLoading(false);
+        // Signal that the hero section fetch attempt has finished
+        setHeroInitialFetchDone(true);
+      }
+    })();
+
+    return () => controller.abort();
+  }, []);
+
+  // 2. Fetch Top Anime ONLY AFTER Hero Fetch is Done
+  useEffect(() => {
+    if (!heroInitialFetchDone) return; // Wait for hero to finish
+
     const controller = new AbortController();
 
     (async () => {
@@ -58,8 +86,9 @@ export default function Dashboard() {
     })();
 
     return () => controller.abort();
-  }, []);
+  }, [heroInitialFetchDone]); // Dependency on the hero completion flag
 
+  // 3. Handle Top Anime Pagination
   useEffect(() => {
     if (showingSearch || topLoading || topLoadingMore || topError || !topHasNextPage || !hasUserScrolled) return;
 
@@ -109,25 +138,6 @@ export default function Dashboard() {
     observer.observe(target);
     return () => observer.disconnect();
   }, [showingSearch, topLoading, topLoadingMore, topError, topHasNextPage, hasUserScrolled]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    (async () => {
-      try {
-        setOngoingLoading(true);
-        setOngoingError(null);
-        const data = await getOngoingAnime(controller.signal);
-        setOngoingAnime(data);
-      } catch (e) {
-        if (!isAbortError(e)) setOngoingError((e as Error).message);
-      } finally {
-        setOngoingLoading(false);
-      }
-    })();
-
-    return () => controller.abort();
-  }, []);
 
   const handleQueryChange = (next: string) => {
     setQuery(next);
