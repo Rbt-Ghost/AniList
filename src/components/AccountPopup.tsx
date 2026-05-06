@@ -429,7 +429,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
             {activeTab === "about" ? (
               <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <div>
-                  <h3 className="text-lg font-semibold text-zinc-100">AniList Clone</h3>
+                  <h3 className="text-lg font-semibold text-zinc-100">AniList</h3>
                   <p className="mt-1 text-sm text-zinc-400">A modern anime tracking application built with React, Tailwind CSS, and Firebase.</p>
                 </div>
 
