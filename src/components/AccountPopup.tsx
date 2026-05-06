@@ -223,7 +223,8 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/80 px-4 py-4 backdrop-blur-sm sm:items-center">
+    // pb-8 prevents overlaying on iOS home bars, fallback to pb-4 on desktop
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/80 px-4 pb-8 pt-4 backdrop-blur-sm sm:items-center sm:pb-4">
       <button
         type="button"
         onClick={onClose}
@@ -231,10 +232,11 @@ export default function AccountPopup({ open, user, onClose }: Props) {
         className="absolute inset-0 cursor-default"
       />
 
-      <section className="relative w-full max-w-2xl overflow-hidden rounded-4xl border border-zinc-800/80 bg-zinc-950 shadow-2xl shadow-black/60">
+      {/* Main Container - max-h ensures it doesn't overflow the viewport */}
+      <section className="relative flex w-full max-w-2xl max-h-[90dvh] flex-col overflow-hidden rounded-3xl border border-zinc-800/80 bg-zinc-950 shadow-2xl shadow-black/60 sm:max-h-[85vh] sm:rounded-4xl">
         
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800/80 bg-zinc-950/50 px-6 py-4">
+        {/* Header - Fixed */}
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-950/50 px-5 py-4 sm:px-6">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Account</p>
             <h2 className="text-lg font-medium tracking-tight text-zinc-100">{userLabel}</h2>
@@ -249,18 +251,18 @@ export default function AccountPopup({ open, user, onClose }: Props) {
           </button>
         </div>
 
-        {/* Body Container: Flex on mobile (tabs on top), Row on desktop (sidebar) */}
-        <div className="flex flex-col sm:min-h-105 sm:flex-row">
+        {/* Body Container - ADDED min-h-[480px] so the height doesn't collapse on smaller tabs */}
+        <div className="flex flex-1 flex-col overflow-hidden min-h-120 sm:min-h-105 sm:flex-row">
           
           {/* Navigation Sidebar / Topbar */}
-          <nav className="flex flex-row overflow-x-auto border-b border-zinc-800/80 bg-zinc-900/20 p-3 sm:w-48 sm:flex-col sm:border-b-0 sm:border-r sm:overflow-visible">
+          <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-zinc-800/80 bg-zinc-900/20 p-2 sm:w-48 sm:flex-col sm:gap-0 sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               onClick={() => {
                 setActiveTab("user");
                 clearMessages();
               }}
-              className={`mb-0 sm:mb-2 flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+              className={`flex flex-1 sm:flex-none items-center justify-center sm:justify-start gap-2 sm:gap-3 rounded-xl px-2 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-all sm:mb-2 ${
                 activeTab === "user" ? "bg-zinc-800 text-zinc-50 shadow-sm" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
               }`}
             >
@@ -274,7 +276,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                 setActiveTab("settings");
                 clearMessages();
               }}
-              className={`mb-0 sm:mb-2 flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+              className={`flex flex-1 sm:flex-none items-center justify-center sm:justify-start gap-2 sm:gap-3 rounded-xl px-2 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-all sm:mb-2 ${
                 activeTab === "settings" ? "bg-zinc-800 text-zinc-50 shadow-sm" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
               }`}
             >
@@ -288,7 +290,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                 setActiveTab("about");
                 clearMessages();
               }}
-              className={`flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+              className={`flex flex-1 sm:flex-none items-center justify-center sm:justify-start gap-2 sm:gap-3 rounded-xl px-2 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-all ${
                 activeTab === "about" ? "bg-zinc-800 text-zinc-50 shadow-sm" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
               }`}
             >
@@ -297,8 +299,8 @@ export default function AccountPopup({ open, user, onClose }: Props) {
             </button>
           </nav>
 
-          {/* Content Area */}
-          <div className="flex-1 p-6 sm:p-8">
+          {/* Content Area - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-5 sm:p-8">
             
             {/* Alerts */}
             {error ? (
@@ -316,23 +318,23 @@ export default function AccountPopup({ open, user, onClose }: Props) {
             {/* TAB: USER */}
             {activeTab === "user" ? (
               <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="flex items-center gap-5">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-zinc-800 bg-zinc-900 shadow-inner">
+                <div className="flex items-center gap-4 sm:gap-5">
+                  <div className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-full border-2 border-zinc-800 bg-zinc-900 shadow-inner">
                     {avatarDataUrl ? (
                       <img src={avatarDataUrl} alt="Profile" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-zinc-300">
+                      <div className="flex h-full w-full items-center justify-center text-xl sm:text-2xl font-bold text-zinc-300">
                         {userInitial}
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col items-start gap-2">
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-zinc-700 hover:shadow-md">
+                  <div className="flex flex-col items-start gap-1.5 sm:gap-2">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/50 px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-medium text-zinc-100 transition hover:bg-zinc-700 hover:shadow-md">
                       <UploadIcon />
-                      Upload new photo
+                      Upload photo
                       <input type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
                     </label>
-                    <p className="text-xs text-zinc-500">JPEG, PNG or GIF. Max 1.5MB.</p>
+                    <p className="text-[10px] sm:text-xs text-zinc-500">JPEG, PNG or GIF. Max 1.5MB.</p>
                   </div>
                 </div>
 
@@ -353,7 +355,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                     type="button"
                     disabled={busy}
                     onClick={handleSaveUserTab}
-                    className="rounded-xl bg-zinc-100 px-6 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-white hover:shadow-lg hover:shadow-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full sm:w-auto rounded-xl bg-zinc-100 px-6 py-3 sm:py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-white hover:shadow-lg hover:shadow-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Save profile
                   </button>
@@ -366,18 +368,18 @@ export default function AccountPopup({ open, user, onClose }: Props) {
               <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <div className="block">
                   <label className="mb-2 block text-sm font-medium text-zinc-400">Username</label>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <input
                       value={displayName}
                       onChange={(event) => setDisplayName(event.target.value)}
                       placeholder="Your username"
-                      className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition focus:border-zinc-600 focus:bg-zinc-900 focus:ring-4 focus:ring-zinc-800/50"
+                      className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 sm:py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition focus:border-zinc-600 focus:bg-zinc-900 focus:ring-4 focus:ring-zinc-800/50"
                     />
                     <button
                       type="button"
                       disabled={busy || displayName.trim() === user.displayName}
                       onClick={handleSaveSettingsTab}
-                      className="shrink-0 rounded-xl bg-zinc-800 px-5 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="shrink-0 rounded-xl bg-zinc-800 px-5 py-3 sm:py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Update
                     </button>
@@ -385,7 +387,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                 </div>
 
                 {/* Danger Zone */}
-                <div className="rounded-2xl border border-red-900/20 bg-red-950/10 p-5">
+                <div className="rounded-2xl border border-red-900/20 bg-red-950/10 p-4 sm:p-5">
                   <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-red-500/80">Danger Zone</h3>
                   
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/60 pb-4 mb-4">
@@ -397,7 +399,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                       type="button"
                       disabled={busy}
                       onClick={handleLogOut}
-                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <LogOutIcon />
                       Log out
@@ -413,7 +415,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                       type="button"
                       disabled={busy}
                       onClick={handleDeleteAccount}
-                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-red-900/40 bg-red-950/40 px-4 py-2.5 text-sm font-medium text-red-300 transition hover:bg-red-900/60 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl border border-red-900/40 bg-red-950/40 px-4 py-2.5 text-sm font-medium text-red-300 transition hover:bg-red-900/60 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <TrashIcon />
                       Delete account
