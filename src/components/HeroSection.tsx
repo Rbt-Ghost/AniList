@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Anime } from "../api/Jikan.ts";
 import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
@@ -8,6 +8,10 @@ export default function HeroSection({ items }: { items: Anime[] }) {
   const [index, setIndex] = useState(0);
   const [seed, setSeed] = useState(0);
   const [bgSrc, setBgSrc] = useState<string | null>(null);
+
+  // Refs for swipe detection
+  const touchStartX = useRef<number | null>(null);
+  const isSwiping = useRef(false);
 
   const count = items.length;
   const clampedIndex = count === 0 ? 0 : ((index % count) + count) % count;
@@ -50,12 +54,47 @@ export default function HeroSection({ items }: { items: Anime[] }) {
   
   const bottomFacts = allFacts.slice(0, 4);
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    isSwiping.current = false;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX.current - touchEndX;
+
+    // Minimum swipe distance threshold
+    if (Math.abs(diff) > 50) {
+      isSwiping.current = true;
+      if (diff > 0) {
+        // Swiped left -> Next
+        setIndex((i) => (i + 1) % count);
+      } else {
+        // Swiped right -> Previous
+        setIndex((i) => (i - 1 + count) % count);
+      }
+      setSeed((s) => s + 1);
+    }
+    touchStartX.current = null;
+  };
+
   const handleCardClick = () => {
+    // Prevent navigation if the user was just swiping
+    if (isSwiping.current) {
+      isSwiping.current = false;
+      return;
+    }
     navigate(`/anime/${anime.mal_id}`);
   };
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-sm cursor-pointer" onClick={handleCardClick}>
+    <div 
+      className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-sm cursor-pointer select-none" 
+      onClick={handleCardClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="relative h-48 xs:h-56 sm:h-80 md:h-135">
         {bgUrl ? (
           <img
@@ -76,7 +115,6 @@ export default function HeroSection({ items }: { items: Anime[] }) {
 
         <div className="absolute inset-x-0 bottom-0 p-3 xs:p-4 sm:p-5 md:p-6">
           <div className="flex flex-col gap-3 xs:gap-4 md:flex-row md:items-end md:justify-between">
-            {/* Added items-end right here to keep the image anchored to the bottom */}
             <div className="flex items-end gap-3 xs:gap-4 min-w-0">
               <div className="h-20 w-16 xs:h-24 xs:w-18 sm:h-32 sm:w-24 md:h-36 md:w-28 shrink-0 overflow-hidden rounded-xl xs:rounded-2xl border border-zinc-800 bg-zinc-900">
                 {coverUrl ? (
@@ -126,7 +164,8 @@ export default function HeroSection({ items }: { items: Anime[] }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 justify-end md:justify-start shrink-0" onClick={(e) => e.stopPropagation()}>
+            {/* Hidden on mobile, flex on desktop */}
+            <div className="hidden sm:flex items-center gap-2 justify-end md:justify-start shrink-0" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => {
