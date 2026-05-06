@@ -24,30 +24,35 @@ export default function Header({
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
+  const [aniListDropdownOpen, setAniListDropdownOpen] = useState(false);
   
   // We use two refs because the menu is rendered twice (once for mobile, once for PC)
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
   const desktopMenuRef = useRef<HTMLDivElement | null>(null);
+  const aniListDropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!userMenuOpen) return;
+    if (!userMenuOpen && !aniListDropdownOpen) return;
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (!target) return;
       if (
         mobileMenuRef.current?.contains(target) || 
-        desktopMenuRef.current?.contains(target)
+        desktopMenuRef.current?.contains(target) ||
+        aniListDropdownRef.current?.contains(target)
       ) {
         return;
       }
 
       setUserMenuOpen(false);
+      setAniListDropdownOpen(false);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setUserMenuOpen(false);
+        setAniListDropdownOpen(false);
       }
     };
 
@@ -57,7 +62,7 @@ export default function Header({
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [userMenuOpen]);
+  }, [userMenuOpen, aniListDropdownOpen]);
 
   const userLabel = (user?.displayName?.trim() || user?.email?.trim() || "User").trim();
   const userInitial = userLabel.length > 0 ? userLabel[0]!.toUpperCase() : "U";
@@ -105,7 +110,10 @@ export default function Header({
           type="button"
           aria-haspopup="menu"
           aria-expanded={userMenuOpen}
-          onClick={() => setUserMenuOpen((current) => !current)}
+          onClick={() => {
+            setUserMenuOpen((current) => !current);
+            setAniListDropdownOpen(false); // Close AniList dropdown when opening User menu
+          }}
           className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-50 transition hover:bg-zinc-900"
           aria-label="Open account menu"
         >
@@ -201,16 +209,23 @@ export default function Header({
               </div>
             </div>
 
-            <div className="group relative shrink-0">
+            <div className="relative shrink-0" ref={aniListDropdownRef}>
               <button
                 type="button"
+                aria-haspopup="menu"
+                aria-expanded={aniListDropdownOpen}
+                onClick={() => {
+                  setAniListDropdownOpen((current) => !current);
+                  setUserMenuOpen(false); // Close User menu when opening AniList dropdown
+                }}
                 className="inline-flex w-auto items-center justify-between gap-2 whitespace-nowrap rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-700 hover:bg-zinc-900"
               >
                 <span>My AniList</span>
+                {/* SVG dynamically rotates when the menu is open */}
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
-                  className="h-4 w-4 text-zinc-400"
+                  className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${aniListDropdownOpen ? "rotate-180" : ""}`}
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
@@ -221,29 +236,34 @@ export default function Header({
                 </svg>
               </button>
 
-              <div className="invisible absolute right-0 top-full z-20 mt-0 w-full min-w-72 opacity-0 transition duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 sm:w-80">
-                <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
-                  {(["plan-to-watch", "watching", "completed"] as const).map((status) => {
-                    const items = getEntriesByStatus(status);
-                    return (
-                      <button
-                        key={status}
-                        type="button"
-                        onClick={() => navigate(`/lists/${status}`)}
-                        className="flex w-full items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 text-left transition last:border-b-0 hover:bg-zinc-900"
-                      >
-                        <div>
-                          <div className="text-sm font-semibold text-zinc-50">{ANIME_LIST_STATUS_LABELS[status]}</div>
-                          <div className="text-xs text-zinc-500">Open the list to track your {ANIME_LIST_STATUS_LABELS[status].toLowerCase()} anime</div>
-                        </div>
-                        <span className="shrink-0 rounded-full border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs font-medium text-zinc-300">
-                          {items.length}
-                        </span>
-                      </button>
-                    );
-                  })}
+              {aniListDropdownOpen ? (
+                <div className="absolute right-0 top-full z-20 mt-2 w-full min-w-72 sm:w-80">
+                  <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
+                    {(["plan-to-watch", "watching", "completed"] as const).map((status) => {
+                      const items = getEntriesByStatus(status);
+                      return (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => {
+                            setAniListDropdownOpen(false);
+                            navigate(`/lists/${status}`);
+                          }}
+                          className="flex w-full items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 text-left transition last:border-b-0 hover:bg-zinc-900"
+                        >
+                          <div>
+                            <div className="text-sm font-semibold text-zinc-50">{ANIME_LIST_STATUS_LABELS[status]}</div>
+                            <div className="text-xs text-zinc-500">Open the list to track your {ANIME_LIST_STATUS_LABELS[status].toLowerCase()} anime</div>
+                          </div>
+                          <span className="shrink-0 rounded-full border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                            {items.length}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </div>
 
             {/* Desktop Auth - Hidden on mobile, visible on sm and larger */}
