@@ -3,6 +3,7 @@ import type { User } from "firebase/auth";
 
 import { useAuth } from "../context/AuthContext.tsx";
 import { getFriendlyAuthError } from "../utils/firebaseAuthErrors.ts";
+import { lockScroll, unlockScroll } from "../utils/scrollLock";
 
 type Props = {
   open: boolean;
@@ -105,10 +106,16 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
 
+    lockScroll();
+
     setDisplayName(user.displayName ?? "");
     setBio(userProfile.bio ?? "");
     setAvatarDataUrl(userProfile.avatarDataUrl ?? null);
     setActiveTab("user");
+
+    return () => {
+      unlockScroll();
+    };
   }, [open, user.displayName, userProfile.avatarDataUrl, userProfile.bio]);
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { lockScroll, unlockScroll } from "../utils/scrollLock";
 
 import { useAuth } from "../context/AuthContext.tsx";
 import { getFriendlyAuthError } from "../utils/firebaseAuthErrors.ts";
@@ -42,6 +43,8 @@ export default function AuthDialog({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
 
+    lockScroll();
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
@@ -49,7 +52,10 @@ export default function AuthDialog({ open, onClose }: Props) {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      unlockScroll();
+    };
   }, [onClose, open]);
 
   if (!open) return null;

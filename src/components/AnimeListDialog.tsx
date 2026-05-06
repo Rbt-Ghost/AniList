@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { lockScroll, unlockScroll } from "../utils/scrollLock";
 import type { Anime } from "../api/Jikan.ts";
 import {
   ANIME_LIST_SCORE_OPTIONS,
@@ -62,6 +63,8 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
 
+    lockScroll();
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
@@ -69,7 +72,10 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      unlockScroll();
+    };
   }, [onClose, open]);
 
   useEffect(() => {
