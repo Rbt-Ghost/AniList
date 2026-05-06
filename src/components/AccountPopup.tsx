@@ -12,7 +12,7 @@ type Props = {
 
 type TabId = "user" | "settings" | "about";
 
-const MAX_AVATAR_SIZE_BYTES = 1_500_000;
+const MAX_AVATAR_SIZE_BYTES = 1_000_000;
 
 // --- High Quality SVG Icons ---
 
@@ -144,7 +144,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
     if (!file) return;
 
     if (file.size > MAX_AVATAR_SIZE_BYTES) {
-      setError("Image is too large. Use a file under 1.5MB.");
+      setError("Image is too large. Use a file under 1MB.");
       event.target.value = "";
       return;
     }
@@ -334,7 +334,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                       Upload photo
                       <input type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
                     </label>
-                    <p className="text-[10px] sm:text-xs text-zinc-500">JPEG, PNG or GIF. Max 1.5MB.</p>
+                    <p className="text-[10px] sm:text-xs text-zinc-500">JPEG, PNG or GIF. Max 1MB.</p>
                   </div>
                 </div>
 
