@@ -38,7 +38,7 @@ function compareScore(left: AnimeListEntry, right: AnimeListEntry) {
   return getAnimeSortTitle(left).localeCompare(getAnimeSortTitle(right));
 }
 
-function ListSection({anime }: { title: string; anime: AnimeListEntry[] }) {
+function ListSection({ anime }: { anime: AnimeListEntry[] }) {
   return (
     <section>
       {anime.length > 0 ? (
@@ -91,9 +91,12 @@ export default function AnimeListPage() {
       <main className="mx-auto max-w-5xl px-6 py-8">
         <div className="space-y-8">
           <section>
-            <div className="flex flex-col items-start gap-3 sm:items-end">
-              <span className="text-sm text-zinc-400">Order By</span>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-xl font-semibold text-zinc-50">{ANIME_LIST_STATUS_LABELS[status]}</h2>
+
+              <div className="flex flex-col items-start gap-3 sm:items-end">
+                <span className="text-sm text-zinc-400">Order By</span>
+                <div className="flex flex-wrap gap-2">
                 {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
                   <button
                     key={option}
@@ -108,6 +111,7 @@ export default function AnimeListPage() {
                     {SORT_LABELS[option]}
                   </button>
                 ))}
+                </div>
               </div>
             </div>
           </section>
@@ -120,7 +124,7 @@ export default function AnimeListPage() {
               <SearchResults query={query} onSelect={() => setQuery("")} />
             </section>
           ) : (
-            <ListSection title={ANIME_LIST_STATUS_LABELS[status]} anime={sortedItems} />
+            <ListSection anime={sortedItems} />
           )}
         </div>
       </main>
