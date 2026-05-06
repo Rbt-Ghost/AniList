@@ -5,6 +5,15 @@ const BASE = import.meta.env.VITE_JIKAN_BASE_URL ?? DEFAULT_BASE;
 // Simple cache for anime by ID (prevents refetching during navigation)
 const animeCache = new Map<number, Anime>();
 const MAX_CACHE_SIZE = 50;
+const SEARCH_CACHE_TTL_MS = 60_000;
+const searchCache = new Map<string, { value: Anime[]; expiresAt: number }>();
+
+// Keep a small gap between requests to avoid bursting the free Jikan API.
+const MIN_REQUEST_INTERVAL_MS = 350;
+const MAX_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 500;
+let lastRequestAt = 0;
+let requestQueue: Promise<void> = Promise.resolve();
 
 type JikanEnvelope<T> = { data: T };
 type JikanPagedEnvelope<T> = {
@@ -13,6 +22,81 @@ type JikanPagedEnvelope<T> = {
     has_next_page?: boolean;
   };
 };
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException("Aborted", "AbortError"));
+  }
+
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      if (signal) {
+        signal.removeEventListener("abort", onAbort);
+      }
+      resolve();
+    }, ms);
+
+    const onAbort = () => {
+      window.clearTimeout(timeout);
+      signal?.removeEventListener("abort", onAbort);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function scheduleRequest<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  const run = async () => {
+    const elapsed = Date.now() - lastRequestAt;
+    const wait = Math.max(0, MIN_REQUEST_INTERVAL_MS - elapsed);
+    if (wait > 0) {
+      await sleep(wait, signal);
+    }
+
+    lastRequestAt = Date.now();
+    return task();
+  };
+
+  const scheduled = requestQueue.then(run, run);
+  requestQueue = scheduled.then(
+    () => undefined,
+    () => undefined
+  );
+  return scheduled;
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+async function fetchWithRetry(path: string, signal?: AbortSignal): Promise<Response> {
+  const url = `${BASE}${path}`;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await scheduleRequest(() => fetch(url, { signal }), signal);
+      if (response.ok || !isRetryableStatus(response.status) || attempt === MAX_RETRIES) {
+        return response;
+      }
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      if (attempt === MAX_RETRIES) {
+        throw new Error("Jikan request failed due to a network error. Please try again.");
+      }
+    }
+
+    const jitter = Math.floor(Math.random() * 150);
+    const backoff = RETRY_BASE_DELAY_MS * (attempt + 1) + jitter;
+    await sleep(backoff, signal);
+  }
+
+  throw new Error("Jikan request failed after retries.");
+}
 
 function getYouTubeIdFromEmbedUrl(embedUrl?: string | null): string | null {
   if (!embedUrl) return null;
@@ -95,7 +179,7 @@ function getCachedAnime(id: number): Anime | undefined {
 }
 
 async function jikanGet<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { signal });
+  const res = await fetchWithRetry(path, signal);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Jikan ${res.status}: ${text || res.statusText}`);
@@ -105,7 +189,7 @@ async function jikanGet<T>(path: string, signal?: AbortSignal): Promise<T> {
 }
 
 async function jikanGetPaged<T>(path: string, signal?: AbortSignal): Promise<{ data: T; hasNextPage: boolean }> {
-  const res = await fetch(`${BASE}${path}`, { signal });
+  const res = await fetchWithRetry(path, signal);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Jikan ${res.status}: ${text || res.statusText}`);
@@ -235,8 +319,21 @@ export function getOngoingAnime(signal?: AbortSignal) {
 }
 
 export function searchAnime(q: string, signal?: AbortSignal) {
-  const params = new URLSearchParams({ q, limit: "12" });
-  return jikanGet<Anime[]>(`/anime?${params}`, signal).then((items) => normalizeAnimeList(items).filter(isSfwAnime));
+  const normalizedQuery = q.trim().toLowerCase();
+  const cached = searchCache.get(normalizedQuery);
+  if (cached && cached.expiresAt > Date.now()) {
+    return Promise.resolve(cached.value);
+  }
+
+  const params = new URLSearchParams({ q, limit: "12", sfw: "true" });
+  return jikanGet<Anime[]>(`/anime?${params}`, signal).then((items) => {
+    const normalized = normalizeAnimeList(items).filter(isSfwAnime);
+    searchCache.set(normalizedQuery, {
+      value: normalized,
+      expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
+    });
+    return normalized;
+  });
 }
 
 export function getAnimeById(id: number, signal?: AbortSignal) {

@@ -26,6 +26,8 @@ type UserProfile = {
   avatarDataUrl: string | null;
 };
 
+type CachedProfile = UserProfile;
+
 type AuthContextValue = {
   user: User | null;
   userProfile: UserProfile;
@@ -47,6 +49,39 @@ const EMPTY_PROFILE: UserProfile = {
   bio: "",
   avatarDataUrl: null,
 };
+
+const PROFILE_CACHE_PREFIX = "anilist:user-profile:";
+
+function getProfileCacheKey(uid: string): string {
+  return `${PROFILE_CACHE_PREFIX}${uid}`;
+}
+
+function readCachedProfile(uid: string): CachedProfile | null {
+  try {
+    const raw = window.localStorage.getItem(getProfileCacheKey(uid));
+    if (!raw) return null;
+
+    return normalizeProfile(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedProfile(uid: string, profile: UserProfile): void {
+  try {
+    window.localStorage.setItem(getProfileCacheKey(uid), JSON.stringify(profile));
+  } catch {
+    // Ignore storage quota / privacy mode failures.
+  }
+}
+
+function clearCachedProfile(uid: string): void {
+  try {
+    window.localStorage.removeItem(getProfileCacheKey(uid));
+  } catch {
+    // Ignore storage failures.
+  }
+}
 
 function normalizeProfile(raw: unknown): UserProfile {
   if (!raw || typeof raw !== "object") {
@@ -70,6 +105,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      if (nextUser) {
+        setUserProfile(readCachedProfile(nextUser.uid) ?? EMPTY_PROFILE);
+      } else {
+        setUserProfile(EMPTY_PROFILE);
+      }
+
       setUser(nextUser);
       setAuthLoading(false);
     });
@@ -96,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const nextProfile = normalizeProfile(snap.data());
         setUserProfile(nextProfile);
+        writeCachedProfile(uid, nextProfile);
       } catch {
         if (active) {
           setUserProfile(EMPTY_PROFILE);
@@ -166,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         try {
           await deleteDoc(doc(db, "users", current.uid, "profile", "state"));
+          clearCachedProfile(current.uid);
         } catch (e) {
           console.warn("Failed to delete user profile from Firestore", e);
         }
@@ -217,6 +260,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ...currentProfile,
             ...nextProfile,
           }));
+
+          writeCachedProfile(current.uid, {
+            ...userProfile,
+            ...nextProfile,
+          });
         }
       },
     };
