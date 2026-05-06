@@ -109,7 +109,7 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-zinc-950/75 px-4 py-4 backdrop-blur sm:items-center">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-zinc-950/80 px-4 pb-16 pt-4 backdrop-blur-sm sm:items-center sm:pb-4">
       <button
         type="button"
         className="absolute inset-0 cursor-default"
@@ -117,37 +117,33 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
         onClick={onClose}
       />
 
-      <section className="relative w-full max-w-2xl overflow-visible rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/40">
-        <div className="border-b border-zinc-800 px-5 py-4">
+      <section className="relative w-full max-w-lg overflow-visible rounded-3xl border border-zinc-800/60 bg-zinc-950/95 shadow-2xl shadow-black/60 backdrop-blur-xl sm:rounded-4xl">
+        <div className="border-b border-zinc-800/60 px-5 py-4 sm:px-6 sm:py-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Add to my list</p>
-              <h2 className="mt-1 text-lg font-semibold text-zinc-50">{anime.title_english || anime.title}</h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">Edit Entry</p>
+              <h2 className="mt-1.5 text-lg font-medium tracking-tight text-zinc-50 line-clamp-1 sm:text-xl">{anime.title_english || anime.title}</h2>
             </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-900"
-            >
-              Close
-            </button>
           </div>
         </div>
 
-        <div className="space-y-5 px-5 py-5">
+        <div className="space-y-5 px-5 py-5 sm:space-y-6 sm:px-6 sm:py-6">
+          {/* Status Dropdown */}
           <div className="block">
-            <span className="text-sm font-medium text-zinc-200">Status</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 sm:text-xs">Status</span>
             <div className="relative mt-2">
               <button
                 type="button"
-                onClick={() => setStatusMenuOpen((s) => !s)}
+                onClick={() => {
+                  setStatusMenuOpen((s) => !s);
+                  setScoreMenuOpen(false); // Close the other menu if open
+                }}
                 aria-haspopup="listbox"
                 aria-expanded={statusMenuOpen}
-                className="w-full flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-50 outline-none transition focus:border-zinc-600"
+                className="flex w-full items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/30 px-4 py-2.5 text-sm text-zinc-100 outline-none transition hover:border-zinc-700 hover:bg-zinc-900/50 focus:border-zinc-600 sm:py-3"
               >
-                <span className="truncate">{ANIME_LIST_STATUS_LABELS[status]}</span>
-                <svg className="ml-3 h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="none" aria-hidden>
+                <span className="truncate font-medium">{ANIME_LIST_STATUS_LABELS[status]}</span>
+                <svg className={`ml-3 h-4 w-4 text-zinc-400 transition-transform ${statusMenuOpen ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="none" aria-hidden>
                   <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
@@ -156,7 +152,7 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
                 <div
                   role="listbox"
                   tabIndex={-1}
-                  className="absolute z-50 mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950 py-2 shadow-lg"
+                  className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-950/95 py-1.5 shadow-xl backdrop-blur-md"
                 >
                   {ANIME_LIST_STATUSES.map((item) => (
                     <button
@@ -168,15 +164,17 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
                         setStatus(item);
                         setStatusMenuOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-2 text-sm ${
-                        status === item ? "bg-zinc-900 text-zinc-50 font-semibold" : "text-zinc-200 hover:bg-zinc-900"
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
+                        status === item ? "bg-zinc-800/50 font-semibold text-zinc-50" : "text-zinc-300 hover:bg-zinc-800/30 hover:text-zinc-100"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span>{ANIME_LIST_STATUS_LABELS[item]}</span>
-                        {status === item ? (
-                          <span className="text-xs text-zinc-400">Selected</span>
-                        ) : null}
+                        {status === item && (
+                          <svg className="h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
                       </div>
                     </button>
                   ))}
@@ -185,55 +183,63 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-zinc-200">Episodes watched</p>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {totalEpisodes != null ? `Out of ${totalEpisodes} episodes` : "No episode cap available"}
-                  </p>
+          <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+            {/* Redesigned Premium Episode Tracker */}
+            <div className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 sm:text-xs">Progress</span>
+              <div className="mt-2 flex w-full items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/30 p-1.5 transition hover:border-zinc-700">
+                <button
+                  type="button"
+                  onClick={() => stepEpisode(-1)}
+                  disabled={watchedEpisodes <= 0}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 sm:h-9 sm:w-9"
+                  aria-label="Decrease watched episodes"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                  </svg>
+                </button>
+                
+                <div className="flex items-baseline gap-1.5 px-3 font-mono text-sm tracking-tight">
+                  <span className="text-base font-semibold text-zinc-100">
+                    {status === "completed" && totalEpisodes != null ? totalEpisodes : watchedEpisodes}
+                  </span>
+                  <span className="text-zinc-600">/</span>
+                  <span className="text-zinc-400">{totalEpisodes ?? "?"}</span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-900/50 px-2 py-1 flex items-center justify-center text-center text-lg font-semibold leading-none text-zinc-50 sm:w-16 sm:text-base">
-                    <span className="block truncate">{status === "completed" && totalEpisodes != null ? totalEpisodes : watchedEpisodes}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => stepEpisode(-1)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-200 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
-                    disabled={watchedEpisodes <= 0}
-                    aria-label="Decrease watched episodes"
-                  >
-                    <span className="text-base leading-none">-</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => stepEpisode(1)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-200 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
-                    disabled={!canIncrementEpisodes}
-                    aria-label="Increase watched episodes"
-                  >
-                    <span className="text-base leading-none">+</span>
-                  </button>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={() => stepEpisode(1)}
+                  disabled={!canIncrementEpisodes}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 sm:h-9 sm:w-9"
+                  aria-label="Increase watched episodes"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <span className="block text-sm font-medium text-zinc-200">Score</span>
+            {/* Score Dropdown */}
+            <div className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 sm:text-xs">Score</span>
               <div className="relative mt-2">
                 <button
                   type="button"
-                  onClick={() => setScoreMenuOpen((s) => !s)}
+                  onClick={() => {
+                    setScoreMenuOpen((s) => !s);
+                    setStatusMenuOpen(false); // Close the other menu if open
+                  }}
                   aria-haspopup="listbox"
                   aria-expanded={scoreMenuOpen}
-                  className="flex w-full items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-50 outline-none transition focus:border-zinc-600"
+                  className="flex w-full items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/30 px-4 py-2.5 text-sm text-zinc-100 outline-none transition hover:border-zinc-700 hover:bg-zinc-900/50 focus:border-zinc-600 sm:py-3"
                 >
-                  <span className="truncate">
+                  <span className="truncate font-medium">
                     {score === "" ? "Not scored" : ANIME_LIST_SCORE_OPTIONS.find((option) => option.value === score)?.label ?? "Not scored"}
                   </span>
-                  <svg className="ml-3 h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="none" aria-hidden>
+                  <svg className={`ml-3 h-4 w-4 text-zinc-400 transition-transform ${scoreMenuOpen ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="none" aria-hidden>
                     <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
@@ -242,7 +248,8 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
                   <div
                     role="listbox"
                     tabIndex={-1}
-                    className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 py-2 shadow-lg"
+                    /* Added [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden to hide scrollbars natively */
+                    className="absolute left-0 bottom-full z-50 mb-2 w-full max-h-[40vh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-xl border border-zinc-800/80 bg-zinc-950/95 py-1.5 shadow-xl backdrop-blur-md sm:bottom-auto sm:top-full sm:mb-0 sm:mt-2 sm:max-h-56"
                   >
                     <button
                       type="button"
@@ -252,13 +259,12 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
                         setScore("");
                         setScoreMenuOpen(false);
                       }}
-                      className={`w-full px-4 py-2 text-left text-sm ${score === "" ? "bg-zinc-900 font-semibold text-zinc-50" : "text-zinc-200 hover:bg-zinc-900"}`}
+                      className={`w-full px-4 py-2 text-left text-sm transition-colors sm:py-2.5 ${score === "" ? "bg-zinc-800/50 font-semibold text-zinc-50" : "text-zinc-300 hover:bg-zinc-800/30 hover:text-zinc-100"}`}
                     >
                       <div className="flex items-center justify-between">
                         <span>Not scored</span>
                         <span className="flex items-center gap-2">
-                          {score === "" ? <span className="text-xs text-zinc-400">Selected</span> : null}
-                          <span className={`h-3 w-3 rounded-full border ${getScorePreviewClass("")}`} aria-hidden="true" />
+                          <span className={`h-2.5 w-2.5 rounded-full border ${getScorePreviewClass("")}`} aria-hidden="true" />
                         </span>
                       </div>
                     </button>
@@ -273,13 +279,12 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
                           setScore(option.value);
                           setScoreMenuOpen(false);
                         }}
-                        className={`w-full px-4 py-2 text-left text-sm ${score === option.value ? "bg-zinc-900 font-semibold text-zinc-50" : "text-zinc-200 hover:bg-zinc-900"}`}
+                        className={`w-full px-4 py-2 text-left text-sm transition-colors sm:py-2.5 ${score === option.value ? "bg-zinc-800/50 font-semibold text-zinc-50" : "text-zinc-300 hover:bg-zinc-800/30 hover:text-zinc-100"}`}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <span>{option.label}</span>
                           <span className="flex items-center gap-2">
-                            {score === option.value ? <span className="text-xs text-zinc-400">Selected</span> : null}
-                            <span className={`h-3 w-3 rounded-full border ${getScorePreviewClass(option.value)}`} aria-hidden="true" />
+                            <span className={`h-2.5 w-2.5 rounded-full border ${getScorePreviewClass(option.value)}`} aria-hidden="true" />
                           </span>
                         </div>
                       </button>
@@ -291,30 +296,32 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
           </div>
 
           {existingEntry ? (
-            <button
-              type="button"
-              onClick={handleRemove}
-              className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm font-semibold text-zinc-300 hover:bg-zinc-900"
-            >
-              Remove from list
-            </button>
+            <div className="pt-1 sm:pt-2">
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="w-full rounded-xl border border-red-900/30 bg-red-950/20 px-4 py-2.5 text-sm font-medium text-red-400 transition hover:bg-red-950/40 hover:text-red-300 sm:py-3"
+              >
+                Remove from list
+              </button>
+            </div>
           ) : null}
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-zinc-800 px-5 py-4">
+        <div className="flex items-center justify-end gap-3 border-t border-zinc-800/60 px-5 py-4 sm:px-6 sm:py-5">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-900"
+            className="rounded-xl px-4 py-2 text-sm font-medium text-zinc-400 transition hover:text-zinc-200 sm:py-2.5"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSubmit}
-            className="rounded-xl border border-zinc-700 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-zinc-200"
+            className="rounded-xl bg-zinc-100 px-5 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-white hover:shadow-lg hover:shadow-white/10 sm:px-6 sm:py-2.5"
           >
-            Save
+            Save changes
           </button>
         </div>
       </section>
