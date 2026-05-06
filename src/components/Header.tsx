@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ANIME_LIST_STATUS_LABELS, useAnimeList } from "../context/AnimeListContext.tsx";
 import { useAuth } from "../context/AuthContext.tsx";
-import { getFriendlyAuthError } from "../utils/firebaseAuthErrors.ts";
 import AuthDialog from "./AuthDialog.tsx";
+import AccountPopup from "./AccountPopup.tsx";
 
 type HeaderProps = {
   query: string;
@@ -19,39 +19,29 @@ export default function Header({
   const navigate = useNavigate();
   const location = useLocation();
   const { getEntriesByStatus } = useAnimeList();
-  const { user, deleteAccount, logOut } = useAuth();
+  const { user, userProfile } = useAuth();
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountPopupOpen, setAccountPopupOpen] = useState(false);
   const [aniListDropdownOpen, setAniListDropdownOpen] = useState(false);
-  
-  // We use two refs because the menu is rendered twice (once for mobile, once for PC)
-  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
-  const desktopMenuRef = useRef<HTMLDivElement | null>(null);
+
   const aniListDropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!userMenuOpen && !aniListDropdownOpen) return;
+    if (!aniListDropdownOpen) return;
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (!target) return;
-      if (
-        mobileMenuRef.current?.contains(target) || 
-        desktopMenuRef.current?.contains(target) ||
-        aniListDropdownRef.current?.contains(target)
-      ) {
+      if (aniListDropdownRef.current?.contains(target)) {
         return;
       }
 
-      setUserMenuOpen(false);
       setAniListDropdownOpen(false);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setUserMenuOpen(false);
         setAniListDropdownOpen(false);
       }
     };
@@ -62,10 +52,12 @@ export default function Header({
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [userMenuOpen, aniListDropdownOpen]);
+  }, [aniListDropdownOpen]);
 
   const userLabel = (user?.displayName?.trim() || user?.email?.trim() || "User").trim();
   const userInitial = userLabel.length > 0 ? userLabel[0]!.toUpperCase() : "U";
+
+  const userAvatar = userProfile.avatarDataUrl;
 
   const handleGoHome = () => {
     if (location.pathname === "/") {
@@ -76,72 +68,27 @@ export default function Header({
     navigate("/");
   };
 
-  const handleLogout = async () => {
-    try {
-      setAccountBusy(true);
-      await logOut();
-      setUserMenuOpen(false);
-    } catch (e) {
-      console.error(e);
-      window.alert(getFriendlyAuthError(e));
-    } finally {
-      setAccountBusy(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    try {
-      setAccountBusy(true);
-      await deleteAccount();
-      setUserMenuOpen(false);
-    } catch (e) {
-      console.error(e);
-      window.alert(getFriendlyAuthError(e));
-    } finally {
-      setAccountBusy(false);
-    }
-  };
-
-  // Extract the auth block to reuse it in both mobile and desktop layouts
-  const renderAuth = (ref: React.RefObject<HTMLDivElement | null>) => {
+  // Extract the auth block to reuse it in both mobile and desktop layouts.
+  const renderAuth = () => {
     return user ? (
-      <div className="relative shrink-0" ref={ref}>
+      <div className="relative shrink-0">
         <button
           type="button"
-          aria-haspopup="menu"
-          aria-expanded={userMenuOpen}
+          aria-haspopup="dialog"
+          aria-expanded={accountPopupOpen}
           onClick={() => {
-            setUserMenuOpen((current) => !current);
-            setAniListDropdownOpen(false); // Close AniList dropdown when opening User menu
+            setAccountPopupOpen(true);
+            setAniListDropdownOpen(false);
           }}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-50 transition hover:bg-zinc-900"
-          aria-label="Open account menu"
+          className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-50 transition hover:bg-zinc-900"
+          aria-label="Open account popup"
         >
-          {userInitial}
+          {userAvatar ? (
+            <img src={userAvatar} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+          ) : (
+            userInitial
+          )}
         </button>
-
-        {userMenuOpen ? (
-          <div className="absolute right-0 top-full z-30 mt-2 w-56">
-            <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={accountBusy}
-                className="flex w-full items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 text-left text-sm text-zinc-200 transition last:border-b-0 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Logout
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteAccount}
-                disabled={accountBusy}
-                className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-sm text-red-200 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Delete account
-              </button>
-            </div>
-          </div>
-        ) : null}
       </div>
     ) : (
       <button
@@ -179,7 +126,7 @@ export default function Header({
 
             {/* Mobile Auth - Visible only on mobile (< sm breakpoint) */}
             <div className="sm:hidden flex shrink-0">
-              {renderAuth(mobileMenuRef)}
+              {renderAuth()}
             </div>
           </div>
 
@@ -216,7 +163,7 @@ export default function Header({
                 aria-expanded={aniListDropdownOpen}
                 onClick={() => {
                   setAniListDropdownOpen((current) => !current);
-                  setUserMenuOpen(false); // Close User menu when opening AniList dropdown
+                  setAccountPopupOpen(false);
                 }}
                 className="inline-flex w-auto items-center justify-between gap-2 whitespace-nowrap rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-700 hover:bg-zinc-900"
               >
@@ -268,13 +215,16 @@ export default function Header({
 
             {/* Desktop Auth - Hidden on mobile, visible on sm and larger */}
             <div className="hidden sm:flex shrink-0">
-              {renderAuth(desktopMenuRef)}
+              {renderAuth()}
             </div>
           </div>
         </div>
       </header>
 
       {authDialogOpen ? <AuthDialog open onClose={() => setAuthDialogOpen(false)} /> : null}
+      {user && accountPopupOpen ? (
+        <AccountPopup open user={user} onClose={() => setAccountPopupOpen(false)} />
+      ) : null}
     </>
   );
 }
