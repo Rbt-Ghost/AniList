@@ -38,14 +38,9 @@ function compareScore(left: AnimeListEntry, right: AnimeListEntry) {
   return getAnimeSortTitle(left).localeCompare(getAnimeSortTitle(right));
 }
 
-function ListSection({ title, anime }: { title: string; anime: AnimeListEntry[] }) {
+function ListSection({anime }: { title: string; anime: AnimeListEntry[] }) {
   return (
     <section>
-      <div className="flex items-end justify-between gap-4">
-        <h2 className="text-lg font-semibold text-zinc-50">{title}</h2>
-        <span className="text-xs uppercase tracking-wide text-zinc-500">{anime.length} titles</span>
-      </div>
-
       {anime.length > 0 ? (
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {anime.map((item) => (
@@ -96,31 +91,23 @@ export default function AnimeListPage() {
       <main className="mx-auto max-w-5xl px-6 py-8">
         <div className="space-y-8">
           <section>
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">My Lists</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-50">
-                  {ANIME_LIST_STATUS_LABELS[status]}
-                </h1>
-              </div>
-              <div className="flex flex-col items-start gap-3 sm:items-end">
-                <span className="text-sm text-zinc-400">Order By</span>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setSortBy(option)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                        sortBy === option
-                          ? "border-zinc-500 bg-zinc-900 text-zinc-50"
-                          : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-                      }`}
-                    >
-                      {SORT_LABELS[option]}
-                    </button>
-                  ))}
-                </div>
+            <div className="flex flex-col items-start gap-3 sm:items-end">
+              <span className="text-sm text-zinc-400">Order By</span>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setSortBy(option)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      sortBy === option
+                        ? "border-zinc-500 bg-zinc-900 text-zinc-50"
+                        : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                    }`}
+                  >
+                    {SORT_LABELS[option]}
+                  </button>
+                ))}
               </div>
             </div>
           </section>
