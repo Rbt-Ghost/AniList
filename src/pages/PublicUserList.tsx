@@ -14,7 +14,7 @@ type SortOption = "score" | "alphabetic" | "last-change";
 
 const SORT_LABELS: Record<SortOption, string> = {
   score: "Score",
-  alphabetic: "Alphabetic Order",
+  alphabetic: "Alphabetic",
   "last-change": "Last Updated",
 };
 
@@ -73,7 +73,9 @@ function ListSection({ anime }: { anime: AnimeListEntry[] }) {
       ))}
     </div>
   ) : (
-    <div className="mt-4 rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6 text-sm text-zinc-400">This list is empty for now.</div>
+    <div className="mt-4 rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6 text-sm text-zinc-400">
+      This list is empty for now.
+    </div>
   );
 }
 
@@ -197,85 +199,128 @@ export default function PublicUserListPage() {
     return <NotFound />;
   }
 
+  const userInitial = (displayName ?? username ?? "U").charAt(0).toUpperCase();
+  const userLabel = displayName ?? username ?? "User";
+
   return (
-    <div className="min-h-screen bg-linear-to-b from-zinc-950 to-zinc-950 text-zinc-50">
+    <div className="min-h-screen bg-linear-to-b from-zinc-950 to-zinc-950 text-zinc-50 pb-16">
       <Header query={query} onQueryChange={setQuery} onClearQuery={() => setQuery("")} />
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <div className="space-y-8">
-          <section>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-800 bg-zinc-900 text-base font-semibold text-zinc-200">
-                  {avatarDataUrl ? (
-                    <img src={avatarDataUrl} alt="" aria-hidden="true" className="h-full w-full object-cover" />
-                  ) : (
-                    (displayName ?? username ?? "U").charAt(0).toUpperCase()
-                  )}
-                </div>
-
-                <div>
-                  <h2 className="text-xl font-semibold text-zinc-50">{displayName ?? username ?? "User"}</h2>
-                  <p className="mt-1 text-sm text-zinc-400">{bio?.trim() ? bio : ANIME_LIST_STATUS_LABELS[normalizedStatus]}</p>
-                </div>
+      <main className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 sm:pt-8">
+        <div className="space-y-6 sm:space-y-8">
+          
+          {/* Profile Header Card (Matches the new Personal Anime List style) */}
+          <section className="relative flex items-center justify-between gap-5 overflow-hidden rounded-3xl border border-zinc-800/60 bg-linear-to-br from-zinc-900/80 to-zinc-950/80 p-5 shadow-lg backdrop-blur-md sm:px-6 sm:py-6">
+            {/* Subtle top highlight */}
+            <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-zinc-600/30 to-transparent" />
+            
+            {/* Background glows */}
+            <div className="absolute -left-8 -top-8 h-32 w-32 rounded-full bg-zinc-700/10 blur-3xl" />
+            <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-zinc-800/20 blur-3xl" />
+            
+            <div className="flex items-center gap-5 overflow-hidden">
+              <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-700/50 bg-zinc-800 text-xl font-bold text-zinc-200 shadow-md sm:h-20 sm:w-20 sm:text-2xl">
+                {avatarDataUrl ? (
+                  <img src={avatarDataUrl} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+                ) : (
+                  userInitial
+                )}
               </div>
 
-              <div className="flex flex-col items-start gap-3 sm:items-end">
-                <span className="text-sm text-zinc-400">Lists</span>
-                <div className="flex flex-wrap gap-2">
-                  {(["plan-to-watch", "watching", "completed"] as const).map((listStatus) => (
-                    <button
-                      key={listStatus}
-                      type="button"
-                      onClick={() => navigate(`/u/${encodeURIComponent(username ?? "")}/${listStatus}`)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                        normalizedStatus === listStatus
-                          ? "border-zinc-500 bg-zinc-900 text-zinc-50"
-                          : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-                      }`}
-                    >
-                      {ANIME_LIST_STATUS_LABELS[listStatus]}
-                    </button>
-                  ))}
-                </div>
-                <span className="text-sm text-zinc-400">Order By</span>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setSortBy(option)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                        sortBy === option
-                          ? "border-zinc-500 bg-zinc-900 text-zinc-50"
-                          : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-                      }`}
-                    >
-                      {SORT_LABELS[option]}
-                    </button>
-                  ))}
-                </div>
+              {/* Middle Section: Name & Bio */}
+              <div className="relative min-w-0 flex-1">
+                <h2 className="truncate text-xl font-bold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-zinc-50 to-zinc-400 sm:text-2xl">
+                  {userLabel}
+                </h2>
+                {bio?.trim() ? (
+                  <p className="mt-1 truncate text-sm text-zinc-400 sm:text-base">
+                    {bio}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Right Section: Stats filling the unused space */}
+            <div className="relative ml-auto flex shrink-0 items-center gap-5 border-l border-zinc-800/60 pl-5 text-right sm:pl-8">
+              <div className="flex flex-col items-center justify-center">
+                <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Total</span>
+                <span className="text-2xl font-bold leading-tight text-zinc-200 sm:text-3xl">{sortedItems.length}</span>
               </div>
             </div>
           </section>
 
           {loading ? (
-            <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6 text-sm text-zinc-400">Loading list…</div>
+            <div className="flex min-h-[40vh] items-center justify-center rounded-3xl border border-zinc-800/80 bg-zinc-900/20 p-6 text-sm text-zinc-500">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300"></div>
+                <p>Loading list…</p>
+              </div>
+            </div>
           ) : error ? (
-            <div className="rounded-3xl border border-red-900/50 bg-red-950/50 p-5 text-sm text-red-100 shadow-sm">
-              <p className="text-base font-semibold text-red-50">{error}</p>
+            <div className="rounded-2xl border border-red-900/30 bg-red-950/20 p-5 text-sm font-medium text-red-400 backdrop-blur-sm">
+              {error}
             </div>
           ) : showingSearch ? (
-            <section>
-              <div className="flex items-end justify-between gap-4">
-                <h2 className="text-lg font-semibold">Search Results</h2>
+            <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-zinc-100">Search Results</h2>
               </div>
               <SearchResults query={query} onSelect={() => setQuery("")} />
             </section>
           ) : (
-            <section>
-              <ListSection anime={sortedItems} />
-            </section>
+            <div className="flex flex-col gap-6">
+              
+              {/* Filter Toolbar */}
+              <section className="flex flex-col gap-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/30 p-2 sm:flex-row sm:items-center sm:justify-between">
+                
+                {/* Lists Segmented Control */}
+                <nav className="flex w-full overflow-x-auto rounded-xl border border-zinc-800/50 bg-zinc-950/50 p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:w-auto">
+                  {(["plan-to-watch", "watching", "completed"] as const).map((listStatus) => (
+                    <button
+                      key={listStatus}
+                      type="button"
+                      onClick={() => navigate(`/u/${encodeURIComponent(username ?? "")}/${listStatus}`)}
+                      className={`flex-1 sm:flex-none whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                        normalizedStatus === listStatus
+                          ? "bg-zinc-800 text-zinc-50 shadow-sm"
+                          : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                      }`}
+                    >
+                      {ANIME_LIST_STATUS_LABELS[listStatus]}
+                    </button>
+                  ))}
+                </nav>
+
+                {/* Sort Segmented Control */}
+                <div className="flex items-center gap-3 pl-1 sm:pl-0">
+                  <span className="hidden shrink-0 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:block">
+                    Sort
+                  </span>
+                  <nav className="flex w-full overflow-x-auto rounded-xl border border-zinc-800/50 bg-zinc-950/50 p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:w-auto">
+                    {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setSortBy(option)}
+                        className={`flex-1 sm:flex-none whitespace-nowrap rounded-lg px-4 py-2 text-xs font-medium transition-all ${
+                          sortBy === option
+                            ? "bg-zinc-800 text-zinc-50 shadow-sm"
+                            : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                        }`}
+                      >
+                        {SORT_LABELS[option]}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+              </section>
+
+              {/* Anime Grid */}
+              <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <ListSection anime={sortedItems} />
+              </section>
+              
+            </div>
           )}
         </div>
       </main>
