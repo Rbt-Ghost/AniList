@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { User } from "firebase/auth";
 import { collection, deleteDoc, doc, getDoc, onSnapshot, query, runTransaction, where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import { useAuth } from "../context/AuthContext.tsx";
 import { getFriendlyAuthError } from "../utils/firebaseAuthErrors.ts";
@@ -128,8 +129,6 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
   const [activeTab, setActiveTab] = useState<TabId>("user");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
@@ -189,7 +188,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       },
       (snapshotError) => {
         console.error("Failed to load friendships", snapshotError);
-        setError("Failed to load your friends list.");
+        toast.error("Failed to load your friends list.");
       }
     );
 
@@ -249,8 +248,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   if (!open) return null;
 
   const clearMessages = () => {
-    setError(null);
-    setSuccess(null);
+    toast.dismiss();
   };
 
   const getRelationshipForUser = (targetUid: string) => {
@@ -268,33 +266,31 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   const handleSearchFriend = async () => {
     const nextQuery = friendQuery.trim();
     if (!nextQuery) {
-      setError("Enter a username to search.");
-      setSuccess(null);
+      toast.error("Enter a username to search.");
       return;
     }
 
     try {
       setBusy(true);
-      setError(null);
-      setSuccess(null);
+      clearMessages();
       const result = await getDoc(doc(db, "usernames", usernameDocId(nextQuery)));
 
       if (!result.exists()) {
         setFriendSearchResult(null);
-        setError("No user found with that username.");
+        toast.error("No user found with that username.");
         return;
       }
 
       const data = result.data() as Partial<UserDirectoryEntry>;
       if (!data.uid || !data.displayName) {
         setFriendSearchResult(null);
-        setError("This username is missing profile data.");
+        toast.error("This username is missing profile data.");
         return;
       }
 
       if (data.uid === user.uid) {
         setFriendSearchResult(null);
-        setError("You cannot add yourself as a friend.");
+        toast.error("You cannot add yourself as a friend.");
         return;
       }
 
@@ -307,7 +303,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
     } catch (searchError) {
       console.error("Failed to search user", searchError);
       setFriendSearchResult(null);
-      setError("Could not search for that user.");
+      toast.error("Could not search for that user.");
     } finally {
       setBusy(false);
     }
@@ -320,8 +316,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
     try {
       setBusy(true);
-      setError(null);
-      setSuccess(null);
+      clearMessages();
 
       await runTransaction(db, async (transaction) => {
         const snapshot = await transaction.get(relationshipRef);
@@ -357,11 +352,11 @@ export default function AccountPopup({ open, user, onClose }: Props) {
         });
       });
 
-      setSuccess("Friend request sent.");
+      toast.success("Friend request sent.");
       setFriendSearchResult(null);
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "Could not send the friend request.";
-      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -372,8 +367,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
     try {
       setBusy(true);
-      setError(null);
-      setSuccess(null);
+      clearMessages();
 
       await runTransaction(db, async (transaction) => {
         const snapshot = await transaction.get(relationshipRef);
@@ -391,10 +385,10 @@ export default function AccountPopup({ open, user, onClose }: Props) {
         });
       });
 
-      setSuccess("Friend request accepted.");
+      toast.success("Friend request accepted.");
     } catch (acceptError) {
       const message = acceptError instanceof Error ? acceptError.message : "Could not accept the request.";
-      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -405,13 +399,12 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
     try {
       setBusy(true);
-      setError(null);
-      setSuccess(null);
+      clearMessages();
       await deleteDoc(relationshipRef);
-      setSuccess(message);
+      toast.success(message);
     } catch (removeError) {
       const nextMessage = removeError instanceof Error ? removeError.message : "Could not update this friendship.";
-      setError(nextMessage);
+      toast.error(nextMessage);
     } finally {
       setBusy(false);
     }
@@ -430,7 +423,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
     if (!file) return;
 
     if (file.size > MAX_AVATAR_SIZE_BYTES) {
-      setError("Image is too large. Use a file under 1MB.");
+      toast.error("Image is too large. Use a file under 1MB.");
       event.target.value = "";
       return;
     }
@@ -441,7 +434,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       setAvatarDataUrl(result);
     };
     reader.onerror = () => {
-      setError("Could not read image file.");
+      toast.error("Could not read image file.");
     };
     reader.readAsDataURL(file);
     event.target.value = "";
@@ -452,9 +445,9 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       clearMessages();
       setBusy(true);
       await updateUserProfile({ bio, avatarDataUrl });
-      setSuccess("Profile saved successfully.");
+      toast.success("Profile saved successfully.");
     } catch (e) {
-      setError(getFriendlyAuthError(e));
+      toast.error(getFriendlyAuthError(e));
     } finally {
       setBusy(false);
     }
@@ -463,7 +456,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   const handleSaveSettingsTab = async () => {
     const trimmedName = displayName.trim();
     if (!trimmedName) {
-      setError("Username cannot be empty.");
+      toast.error("Username cannot be empty.");
       return;
     }
 
@@ -471,9 +464,9 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       clearMessages();
       setBusy(true);
       await updateUserProfile({ displayName: trimmedName });
-      setSuccess("Username updated successfully.");
+      toast.success("Username updated successfully.");
     } catch (e) {
-      setError(getFriendlyAuthError(e));
+      toast.error(getFriendlyAuthError(e));
     } finally {
       setBusy(false);
     }
@@ -486,7 +479,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       await logOut();
       onClose();
     } catch (e) {
-      setError(getFriendlyAuthError(e));
+      toast.error(getFriendlyAuthError(e));
     } finally {
       setBusy(false);
     }
@@ -501,7 +494,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       setDeleteConfirmText("");
       onClose();
     } catch (e) {
-      setError(getFriendlyAuthError(e));
+      toast.error(getFriendlyAuthError(e));
     } finally {
       setBusy(false);
     }
@@ -607,19 +600,6 @@ export default function AccountPopup({ open, user, onClose }: Props) {
           {/* Content Area - Scrollable */}
           <div className="flex-1 overflow-y-auto p-5 pt-6 sm:p-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             
-            {/* Alerts */}
-            {error ? (
-              <div className="mb-6 rounded-xl border border-red-900/30 bg-red-950/20 px-4 py-3 text-sm font-medium text-red-400 backdrop-blur-sm">
-                {error}
-              </div>
-            ) : null}
-
-            {success ? (
-              <div className="mb-6 rounded-xl border border-emerald-900/30 bg-emerald-950/20 px-4 py-3 text-sm font-medium text-emerald-400 backdrop-blur-sm">
-                {success}
-              </div>
-            ) : null}
-
             {/* TAB: USER */}
             {activeTab === "user" ? (
               <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-4">
