@@ -203,23 +203,16 @@ export default function PublicUserListPage() {
   const userLabel = displayName ?? username ?? "User";
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-zinc-950 to-zinc-950 text-zinc-50 pb-16">
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 pb-16">
       <Header query={query} onQueryChange={setQuery} onClearQuery={() => setQuery("")} />
 
       <main className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 sm:pt-8">
         <div className="space-y-6 sm:space-y-8">
           
-          {/* Profile Header Card (Matches the new Personal Anime List style) */}
-          <section className="relative flex items-center justify-between gap-5 overflow-hidden rounded-3xl border border-zinc-800/60 bg-linear-to-br from-zinc-900/80 to-zinc-950/80 p-5 shadow-lg backdrop-blur-md sm:px-6 sm:py-6">
-            {/* Subtle top highlight */}
-            <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-zinc-600/30 to-transparent" />
-            
-            {/* Background glows */}
-            <div className="absolute -left-8 -top-8 h-32 w-32 rounded-full bg-zinc-700/10 blur-3xl" />
-            <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-zinc-800/20 blur-3xl" />
-            
+          {/* Minimalist Profile Header Card */}
+          <section className="flex items-center justify-between gap-5 rounded-2xl border border-zinc-800/60 bg-zinc-900/20 p-5 sm:px-6 sm:py-6">
             <div className="flex items-center gap-5 overflow-hidden">
-              <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-700/50 bg-zinc-800 text-xl font-bold text-zinc-200 shadow-md sm:h-20 sm:w-20 sm:text-2xl">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-xl font-medium text-zinc-300 sm:h-20 sm:w-20 sm:text-2xl">
                 {avatarDataUrl ? (
                   <img src={avatarDataUrl} alt="" aria-hidden="true" className="h-full w-full object-cover" />
                 ) : (
@@ -228,8 +221,8 @@ export default function PublicUserListPage() {
               </div>
 
               {/* Middle Section: Name & Bio */}
-              <div className="relative min-w-0 flex-1">
-                <h2 className="truncate text-xl font-bold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-zinc-50 to-zinc-400 sm:text-2xl">
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
                   {userLabel}
                 </h2>
                 {bio?.trim() ? (
@@ -240,11 +233,11 @@ export default function PublicUserListPage() {
               </div>
             </div>
 
-            {/* Right Section: Stats filling the unused space */}
-            <div className="relative ml-auto flex shrink-0 items-center gap-5 border-l border-zinc-800/60 pl-5 text-right sm:pl-8">
+            {/* Right Section: Stats */}
+            <div className="ml-auto flex shrink-0 items-center pl-5 text-right sm:pl-8">
               <div className="flex flex-col items-center justify-center">
-                <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Total</span>
-                <span className="text-2xl font-bold leading-tight text-zinc-200 sm:text-3xl">{sortedItems.length}</span>
+                <span className="text-xs font-medium text-zinc-500">Total</span>
+                <span className="text-2xl font-semibold text-zinc-100 sm:text-3xl">{sortedItems.length}</span>
               </div>
             </div>
           </section>
