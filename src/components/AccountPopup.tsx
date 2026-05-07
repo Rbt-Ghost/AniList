@@ -139,6 +139,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   const [friendQuery, setFriendQuery] = useState("");
   const [friendSearchResult, setFriendSearchResult] = useState<UserDirectoryEntry | null>(null);
   const [friendships, setFriendships] = useState<FriendshipRecord[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(true);
   const [friendActionMenuUid, setFriendActionMenuUid] = useState<string | null>(null);
 
   const bioRef = useRef<HTMLTextAreaElement>(null);
@@ -176,6 +177,8 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   useEffect(() => {
     if (!open || activeTab !== "friends") return;
 
+    setFriendsLoading(true);
+
     const friendshipsQuery = query(collection(db, "friendships"), where("participants", "array-contains", user.uid));
     const unsubscribe = onSnapshot(
       friendshipsQuery,
@@ -185,10 +188,12 @@ export default function AccountPopup({ open, user, onClose }: Props) {
           .sort((left, right) => right.updatedAt - left.updatedAt);
 
         setFriendships(nextFriendships);
+        setFriendsLoading(false);
       },
       (snapshotError) => {
         console.error("Failed to load friendships", snapshotError);
         toast.error("Failed to load your friends list.");
+        setFriendsLoading(false);
       }
     );
 
@@ -726,167 +731,176 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                   ) : null}
                 </section>
 
-                {/* Friend Requests */}
-                {(incomingFriendRequests.length > 0 || outgoingFriendRequests.length > 0) ? (
-                  <section>
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-zinc-400">Requests</h3>
-                      <span className="text-xs text-zinc-600">{incomingFriendRequests.length + outgoingFriendRequests.length}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {incomingFriendRequests.map((relationship) => {
-                        const friend = getOtherSnapshot(relationship);
-                        return (
-                          <div key={`${relationship.participants[0]}-${relationship.participants[1]}-incoming`} className="group flex items-center justify-between gap-3 rounded-2xl p-2 transition hover:bg-zinc-900/40">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
-                                {friend.avatarDataUrl ? (
-                                  <img src={friend.avatarDataUrl} alt="" className="h-full w-full object-cover" />
-                                ) : (
-                                  friend.displayName[0]?.toUpperCase() ?? "U"
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
-                                {friend.bio ? (
-                                  <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
-                                ) : (
-                                  <div className="text-xs text-zinc-500">Wants to be friends</div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => void handleAcceptFriendRequest(relationship)}
-                                className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-white disabled:opacity-50"
-                                disabled={busy}
-                              >
-                                Accept
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleRemoveRelationship(relationship, "Friend request declined.")}
-                                className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700 disabled:opacity-50"
-                                disabled={busy}
-                              >
-                                Decline
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {outgoingFriendRequests.map((relationship) => {
-                        const friend = getOtherSnapshot(relationship);
-                        return (
-                          <div key={`${relationship.participants[0]}-${relationship.participants[1]}-outgoing`} className="group flex items-center justify-between gap-3 rounded-2xl p-2 transition hover:bg-zinc-900/40">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
-                                {friend.avatarDataUrl ? (
-                                  <img src={friend.avatarDataUrl} alt="" className="h-full w-full object-cover" />
-                                ) : (
-                                  friend.displayName[0]?.toUpperCase() ?? "U"
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
-                                {friend.bio ? (
-                                  <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
-                                ) : (
-                                  <div className="text-xs text-zinc-500">Request sent</div>
-                                )}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => void handleRemoveRelationship(relationship, "Friend request canceled.")}
-                              className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700 disabled:opacity-50"
-                              disabled={busy}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
-                ) : null}
-
-                {/* Friends List */}
-                <section>
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-zinc-400">Friends</h3>
-                    <span className="text-xs text-zinc-600">{acceptedFriends.length}</span>
+                {friendsLoading ? (
+                  <div className="flex py-8 items-center justify-center gap-3 text-sm text-zinc-500">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300"></div>
+                    Loading friends...
                   </div>
-                  <div className="flex flex-col gap-1">
-                    {acceptedFriends.length > 0 ? (
-                      acceptedFriends.map((relationship) => {
-                        const friend = getOtherSnapshot(relationship);
-                        const actionMenuOpen = friendActionMenuUid === friend.uid;
-
-                        return (
-                          <div key={`${relationship.participants[0]}-${relationship.participants[1]}`} className="group relative flex items-center justify-between gap-3 rounded-2xl p-2 transition hover:bg-zinc-900/40">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
-                                {friend.avatarDataUrl ? (
-                                  <img src={friend.avatarDataUrl} alt="" className="h-full w-full object-cover" />
-                                ) : (
-                                  friend.displayName[0]?.toUpperCase() ?? "U"
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
-                                {friend.bio ? (
-                                  <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
-                                ) : null}
-                              </div>
-                            </div>
-
-                            <div className="relative shrink-0" ref={actionMenuOpen ? friendMenuRef : undefined}>
-                              <button
-                                type="button"
-                                onClick={() => setFriendActionMenuUid(actionMenuOpen ? null : friend.uid)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700"
-                              >
-                                View list
-                                <ChevronDownIcon open={actionMenuOpen} />
-                              </button>
-
-                              {actionMenuOpen ? (
-                                <div className="absolute bottom-full right-0 z-20 mb-2 w-44 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-2">
-                                  {(["plan-to-watch", "watching", "completed"] as const).map((listStatus) => (
-                                    <button
-                                      key={listStatus}
-                                      type="button"
-                                      onClick={() => handleOpenFriendList(friend.displayName, listStatus)}
-                                      className="flex w-full items-center justify-between border-b border-zinc-800/50 px-4 py-3 text-left text-xs font-medium text-zinc-300 transition last:border-b-0 hover:bg-zinc-800 hover:text-zinc-50"
-                                    >
-                                      {listStatus === "plan-to-watch"
-                                        ? "Plan to watch"
-                                        : listStatus === "watching"
-                                          ? "Watching"
-                                          : "Completed"}
-                                    </button>
-                                  ))}
+                ) : (
+                  <>
+                    {/* Friend Requests */}
+                    {(incomingFriendRequests.length > 0 || outgoingFriendRequests.length > 0) ? (
+                      <section>
+                        <div className="mb-3 flex items-center justify-between">
+                          <h3 className="text-sm font-medium text-zinc-400">Requests</h3>
+                          <span className="text-xs text-zinc-600">{incomingFriendRequests.length + outgoingFriendRequests.length}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {incomingFriendRequests.map((relationship) => {
+                            const friend = getOtherSnapshot(relationship);
+                            return (
+                              <div key={`${relationship.participants[0]}-${relationship.participants[1]}-incoming`} className="group flex items-center justify-between gap-3 rounded-2xl p-2 transition hover:bg-zinc-900/40">
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                                    {friend.avatarDataUrl ? (
+                                      <img src={friend.avatarDataUrl} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                      friend.displayName[0]?.toUpperCase() ?? "U"
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
+                                    {friend.bio ? (
+                                      <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
+                                    ) : (
+                                      <div className="text-xs text-zinc-500">Wants to be friends</div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => void handleRemoveRelationship(relationship, "Friend removed.")}
-                                    className="flex w-full items-center justify-between bg-red-950/10 px-4 py-3 text-left text-xs font-medium text-red-400 transition hover:bg-red-950/40 hover:text-red-300"
+                                    onClick={() => void handleAcceptFriendRequest(relationship)}
+                                    className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-white disabled:opacity-50"
+                                    disabled={busy}
                                   >
-                                    Unfriend
+                                    Accept
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleRemoveRelationship(relationship, "Friend request declined.")}
+                                    className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700 disabled:opacity-50"
+                                    disabled={busy}
+                                  >
+                                    Decline
                                   </button>
                                 </div>
-                              ) : null}
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="py-4 text-center text-sm text-zinc-600">No friends yet.</div>
-                    )}
-                  </div>
-                </section>
+                              </div>
+                            );
+                          })}
+
+                          {outgoingFriendRequests.map((relationship) => {
+                            const friend = getOtherSnapshot(relationship);
+                            return (
+                              <div key={`${relationship.participants[0]}-${relationship.participants[1]}-outgoing`} className="group flex items-center justify-between gap-3 rounded-2xl p-2 transition hover:bg-zinc-900/40">
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                                    {friend.avatarDataUrl ? (
+                                      <img src={friend.avatarDataUrl} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                      friend.displayName[0]?.toUpperCase() ?? "U"
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
+                                    {friend.bio ? (
+                                      <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
+                                    ) : (
+                                      <div className="text-xs text-zinc-500">Request sent</div>
+                                    )}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleRemoveRelationship(relationship, "Friend request canceled.")}
+                                  className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700 disabled:opacity-50"
+                                  disabled={busy}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    ) : null}
+
+                    {/* Friends List */}
+                    <section>
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-zinc-400">Friends</h3>
+                        <span className="text-xs text-zinc-600">{acceptedFriends.length}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {acceptedFriends.length > 0 ? (
+                          acceptedFriends.map((relationship) => {
+                            const friend = getOtherSnapshot(relationship);
+                            const actionMenuOpen = friendActionMenuUid === friend.uid;
+
+                            return (
+                              <div key={`${relationship.participants[0]}-${relationship.participants[1]}`} className="group relative flex items-center justify-between gap-3 rounded-2xl p-2 transition hover:bg-zinc-900/40">
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                                    {friend.avatarDataUrl ? (
+                                      <img src={friend.avatarDataUrl} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                      friend.displayName[0]?.toUpperCase() ?? "U"
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
+                                    {friend.bio ? (
+                                      <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
+                                    ) : null}
+                                  </div>
+                                </div>
+
+                                <div className="relative shrink-0" ref={actionMenuOpen ? friendMenuRef : undefined}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setFriendActionMenuUid(actionMenuOpen ? null : friend.uid)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700"
+                                  >
+                                    View list
+                                    <ChevronDownIcon open={actionMenuOpen} />
+                                  </button>
+
+                                  {actionMenuOpen ? (
+                                    <div className="absolute bottom-full right-0 z-20 mb-2 w-44 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-2">
+                                      {(["plan-to-watch", "watching", "completed"] as const).map((listStatus) => (
+                                        <button
+                                          key={listStatus}
+                                          type="button"
+                                          onClick={() => handleOpenFriendList(friend.displayName, listStatus)}
+                                          className="flex w-full items-center justify-between border-b border-zinc-800/50 px-4 py-3 text-left text-xs font-medium text-zinc-300 transition last:border-b-0 hover:bg-zinc-800 hover:text-zinc-50"
+                                        >
+                                          {listStatus === "plan-to-watch"
+                                            ? "Plan to watch"
+                                            : listStatus === "watching"
+                                              ? "Watching"
+                                              : "Completed"}
+                                        </button>
+                                      ))}
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleRemoveRelationship(relationship, "Friend removed.")}
+                                        className="flex w-full items-center justify-between bg-red-950/10 px-4 py-3 text-left text-xs font-medium text-red-400 transition hover:bg-red-950/40 hover:text-red-300"
+                                      >
+                                        Unfriend
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="py-4 text-center text-sm text-zinc-600">No friends yet.</div>
+                        )}
+                      </div>
+                    </section>
+                  </>
+                )}
               </div>
             ) : null}
 
