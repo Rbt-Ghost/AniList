@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
 import { ANIME_LIST_STATUS_LABELS, type AnimeListEntry, type AnimeListStatus } from "../context/AnimeListContext.tsx";
@@ -78,12 +78,15 @@ function ListSection({ anime }: { anime: AnimeListEntry[] }) {
 }
 
 export default function PublicUserListPage() {
+  const navigate = useNavigate();
   const { username, status } = useParams<{ username: string; status?: string }>();
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("last-change");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
+  const [bio, setBio] = useState<string | null>(null);
   const [entries, setEntries] = useState<AnimeListEntry[]>([]);
   const [notFound, setNotFound] = useState(false);
 
@@ -113,16 +116,27 @@ export default function PublicUserListPage() {
         if (!userDoc.exists()) {
           setNotFound(true);
           setDisplayName(null);
+          setAvatarDataUrl(null);
+          setBio(null);
           setEntries([]);
           setLoading(false);
           return;
         }
 
-        const userData = userDoc.data() as { displayName?: unknown; uid?: unknown };
+        const userData = userDoc.data() as {
+          displayName?: unknown;
+          uid?: unknown;
+          avatarDataUrl?: unknown;
+          bio?: unknown;
+        };
         const nextDisplayName = typeof userData.displayName === "string" ? userData.displayName : username;
         const uid = typeof userData.uid === "string" ? userData.uid : null;
+        const nextAvatarDataUrl = typeof userData.avatarDataUrl === "string" ? userData.avatarDataUrl : null;
+        const nextBio = typeof userData.bio === "string" ? userData.bio : null;
 
         setDisplayName(nextDisplayName);
+        setAvatarDataUrl(nextAvatarDataUrl);
+        setBio(nextBio);
 
         if (!uid) {
           setEntries([]);
@@ -191,12 +205,39 @@ export default function PublicUserListPage() {
         <div className="space-y-8">
           <section>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-zinc-50">{displayName ?? username ?? "User"}</h2>
-                <p className="mt-1 text-sm text-zinc-400">{ANIME_LIST_STATUS_LABELS[normalizedStatus]}</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-800 bg-zinc-900 text-base font-semibold text-zinc-200">
+                  {avatarDataUrl ? (
+                    <img src={avatarDataUrl} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+                  ) : (
+                    (displayName ?? username ?? "U").charAt(0).toUpperCase()
+                  )}
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold text-zinc-50">{displayName ?? username ?? "User"}</h2>
+                  <p className="mt-1 text-sm text-zinc-400">{bio?.trim() ? bio : ANIME_LIST_STATUS_LABELS[normalizedStatus]}</p>
+                </div>
               </div>
 
               <div className="flex flex-col items-start gap-3 sm:items-end">
+                <span className="text-sm text-zinc-400">Lists</span>
+                <div className="flex flex-wrap gap-2">
+                  {(["plan-to-watch", "watching", "completed"] as const).map((listStatus) => (
+                    <button
+                      key={listStatus}
+                      type="button"
+                      onClick={() => navigate(`/u/${encodeURIComponent(username ?? "")}/${listStatus}`)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                        normalizedStatus === listStatus
+                          ? "border-zinc-500 bg-zinc-900 text-zinc-50"
+                          : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                      }`}
+                    >
+                      {ANIME_LIST_STATUS_LABELS[listStatus]}
+                    </button>
+                  ))}
+                </div>
                 <span className="text-sm text-zinc-400">Order By</span>
                 <div className="flex flex-wrap gap-2">
                   {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (

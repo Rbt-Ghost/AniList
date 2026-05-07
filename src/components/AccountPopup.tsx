@@ -854,7 +854,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                               </button>
 
                               {actionMenuOpen ? (
-                                <div className="absolute bottom-full right-0 z-20 mb-2 w-44 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40 sm:top-full sm:mb-0 sm:mt-2">
+                                <div className="absolute bottom-full right-0 z-20 mb-2 w-44 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-2">
                                   {(["plan-to-watch", "watching", "completed"] as const).map((listStatus) => (
                                     <button
                                       key={listStatus}
