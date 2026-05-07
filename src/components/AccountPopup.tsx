@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, useRef, type ChangeEvent } from "react";
 import type { User } from "firebase/auth";
 
 import { useAuth } from "../context/AuthContext.tsx";
@@ -42,9 +42,9 @@ function InfoIcon() {
   );
 }
 
-function UploadIcon() {
+function CameraIcon() {
   return (
-    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6 text-zinc-200">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
     </svg>
@@ -97,6 +97,8 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   const [bio, setBio] = useState("");
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
 
+  const bioRef = useRef<HTMLTextAreaElement>(null);
+
   const userLabel = useMemo(() => {
     return (user.displayName?.trim() || user.email?.trim() || "User").trim();
   }, [user.displayName, user.email]);
@@ -117,6 +119,14 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       unlockScroll();
     };
   }, [open, user.displayName, userProfile.avatarDataUrl, userProfile.bio]);
+
+  // Auto-resize the bio textarea whenever its value changes or the tab is active
+  useEffect(() => {
+    if (activeTab === "user" && bioRef.current) {
+      bioRef.current.style.height = "auto";
+      bioRef.current.style.height = `${bioRef.current.scrollHeight}px`;
+    }
+  }, [bio, activeTab]);
 
   useEffect(() => {
     if (!open) return;
@@ -242,72 +252,66 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       {/* Main Container - max-h ensures it doesn't overflow the viewport */}
       <section className="relative flex w-full max-w-2xl max-h-[90dvh] flex-col overflow-hidden rounded-3xl border border-zinc-800/80 bg-zinc-950 shadow-2xl shadow-black/60 sm:max-h-[85vh] sm:rounded-4xl">
         
-        {/* Header - Fixed */}
-        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-950/50 px-5 py-4 sm:px-6">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Account</p>
-            <h2 className="text-lg font-medium tracking-tight text-zinc-100">{userLabel}</h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
-            aria-label="Close"
-          >
-            <CloseIcon />
-          </button>
-        </div>
+        {/* Floating Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-50 rounded-full bg-zinc-950/50 p-2 text-zinc-400 backdrop-blur-sm transition hover:bg-zinc-800 hover:text-zinc-100 sm:right-4 sm:top-4"
+          aria-label="Close"
+        >
+          <CloseIcon />
+        </button>
 
-        {/* Body Container - ADDED min-h-[480px] so the height doesn't collapse on smaller tabs */}
+        {/* Body Container */}
         <div className="flex flex-1 flex-col overflow-hidden min-h-120 sm:min-h-105 sm:flex-row">
           
           {/* Navigation Sidebar / Topbar */}
-          <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-zinc-800/80 bg-zinc-900/20 p-2 sm:w-48 sm:flex-col sm:gap-0 sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <nav className="flex shrink-0 flex-row gap-2 overflow-x-auto border-b border-zinc-800/80 bg-zinc-900/20 p-2 pr-14 sm:w-20 sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3 sm:pr-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
+              title="Profile"
               onClick={() => {
                 setActiveTab("user");
                 clearMessages();
               }}
-              className={`flex flex-1 sm:flex-none items-center justify-center sm:justify-start gap-2 sm:gap-3 rounded-xl px-2 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-all sm:mb-2 ${
+              className={`flex flex-1 sm:flex-none items-center justify-center rounded-xl p-3 sm:p-4 text-sm font-medium transition-all sm:mb-2 ${
                 activeTab === "user" ? "bg-zinc-800 text-zinc-50 shadow-sm" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
               }`}
             >
               <UserIcon />
-              <span>Profile</span>
             </button>
 
             <button
               type="button"
+              title="Settings"
               onClick={() => {
                 setActiveTab("settings");
                 clearMessages();
               }}
-              className={`flex flex-1 sm:flex-none items-center justify-center sm:justify-start gap-2 sm:gap-3 rounded-xl px-2 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-all sm:mb-2 ${
+              className={`flex flex-1 sm:flex-none items-center justify-center rounded-xl p-3 sm:p-4 text-sm font-medium transition-all sm:mb-2 ${
                 activeTab === "settings" ? "bg-zinc-800 text-zinc-50 shadow-sm" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
               }`}
             >
               <SettingsIcon />
-              <span>Settings</span>
             </button>
 
             <button
               type="button"
+              title="About"
               onClick={() => {
                 setActiveTab("about");
                 clearMessages();
               }}
-              className={`flex flex-1 sm:flex-none items-center justify-center sm:justify-start gap-2 sm:gap-3 rounded-xl px-2 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-all ${
+              className={`flex flex-1 sm:flex-none items-center justify-center rounded-xl p-3 sm:p-4 text-sm font-medium transition-all ${
                 activeTab === "about" ? "bg-zinc-800 text-zinc-50 shadow-sm" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
               }`}
             >
               <InfoIcon />
-              <span>About</span>
             </button>
           </nav>
 
           {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-5 sm:p-8">
+          <div className="flex-1 overflow-y-auto p-5 pt-6 sm:p-8">
             
             {/* Alerts */}
             {error ? (
@@ -324,45 +328,45 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
             {/* TAB: USER */}
             {activeTab === "user" ? (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="flex items-center gap-4 sm:gap-5">
-                  <div className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-full border-2 border-zinc-800 bg-zinc-900 shadow-inner">
+              <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-4">
+                <div className="flex flex-col items-center gap-2">
+                  <label className="group relative flex h-24 w-24 sm:h-28 sm:w-28 shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-zinc-800 bg-zinc-900 shadow-inner transition duration-300 hover:border-zinc-500">
                     {avatarDataUrl ? (
-                      <img src={avatarDataUrl} alt="Profile" className="h-full w-full object-cover" />
+                      <img src={avatarDataUrl} alt="Profile" className="h-full w-full object-cover transition duration-300 group-hover:opacity-40" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xl sm:text-2xl font-bold text-zinc-300">
+                      <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-zinc-300 transition duration-300 group-hover:opacity-40">
                         {userInitial}
                       </div>
                     )}
-                  </div>
-                  <div className="flex flex-col items-start gap-1.5 sm:gap-2">
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/50 px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-medium text-zinc-100 transition hover:bg-zinc-700 hover:shadow-md">
-                      <UploadIcon />
-                      Upload photo
-                      <input type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
-                    </label>
-                    <p className="text-[10px] sm:text-xs text-zinc-500">JPEG, PNG or GIF. Max 1MB.</p>
-                  </div>
+                    
+                    {/* Hover Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/40 opacity-0 backdrop-blur-[2px] transition-opacity duration-300 group-hover:opacity-100">
+                      <CameraIcon />
+                    </div>
+
+                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
+                  </label>
                 </div>
 
-                <div className="block">
-                  <label className="mb-2 block text-sm font-medium text-zinc-400">Bio</label>
+                <div className="block w-full text-center">
+                  <label className="mb-2 block text-sm font-medium text-zinc-400">{userLabel}</label>
                   <textarea
+                    ref={bioRef}
                     value={bio}
-                    onChange={(event) => setBio(event.target.value.slice(0, 240))}
-                    rows={4}
-                    placeholder="Tell us a bit about yourself..."
-                    className="w-full resize-none rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition focus:border-zinc-600 focus:bg-zinc-900 focus:ring-4 focus:ring-zinc-800/50"
+                    onChange={(event) => setBio(event.target.value.slice(0, 100))}
+                    rows={1}
+                    placeholder="Empty bio..."
+                    className="w-full resize-none overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-center text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition focus:border-zinc-600 focus:bg-zinc-900 focus:ring-4 focus:ring-zinc-800/50"
                   />
-                  <div className="mt-2 text-right text-xs text-zinc-500">{bio.length} / 240</div>
+                  <div className="mt-2 text-xs text-zinc-500">{bio.length} / 100</div>
                 </div>
 
-                <div className="mt-2 flex justify-end">
+                <div className="mt-2 flex w-full justify-center">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={handleSaveUserTab}
-                    className="w-full sm:w-auto rounded-xl bg-zinc-100 px-6 py-3 sm:py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-white hover:shadow-lg hover:shadow-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full sm:w-auto rounded-xl bg-zinc-100 px-8 py-3 sm:py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-white hover:shadow-lg hover:shadow-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Save profile
                   </button>
@@ -372,21 +376,21 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
             {/* TAB: SETTINGS */}
             {activeTab === "settings" ? (
-              <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-4 sm:gap-8">
                 <div className="block">
                   <label className="mb-2 block text-sm font-medium text-zinc-400">Username</label>
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-row gap-2 sm:gap-3">
                     <input
                       value={displayName}
                       onChange={(event) => setDisplayName(event.target.value)}
                       placeholder="Your username"
-                      className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 sm:py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition focus:border-zinc-600 focus:bg-zinc-900 focus:ring-4 focus:ring-zinc-800/50"
+                      className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition focus:border-zinc-600 focus:bg-zinc-900 focus:ring-4 focus:ring-zinc-800/50"
                     />
                     <button
                       type="button"
                       disabled={busy || displayName.trim() === user.displayName}
                       onClick={handleSaveSettingsTab}
-                      className="shrink-0 rounded-xl bg-zinc-800 px-5 py-3 sm:py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="shrink-0 rounded-xl bg-zinc-800 px-4 py-2.5 sm:px-5 text-sm font-medium text-zinc-100 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Update
                     </button>
@@ -395,37 +399,37 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
                 {/* Danger Zone */}
                 <div className="rounded-2xl border border-red-900/20 bg-red-950/10 p-4 sm:p-5">
-                  <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-red-500/80">Danger Zone</h3>
+                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-red-500/80 sm:mb-4">Danger Zone</h3>
                   
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/60 pb-4 mb-4">
-                    <div>
+                  <div className="mb-3 flex flex-row items-center justify-between gap-3 border-b border-zinc-800/60 pb-3 sm:mb-4 sm:pb-4">
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-zinc-200">Log Out</p>
-                      <p className="text-xs text-zinc-500">Sign out of your current session.</p>
+                      <p className="mt-0.5 text-xs text-zinc-500">Sign out of your session.</p>
                     </div>
                     <button
                       type="button"
                       disabled={busy}
                       onClick={handleLogOut}
-                      className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex w-28 sm:w-32 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800/50 px-3 py-2 text-xs font-medium text-zinc-200 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
                     >
                       <LogOutIcon />
-                      Log out
+                      <span>Log out</span>
                     </button>
                   </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
+                  <div className="flex flex-row items-center justify-between gap-3">
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-red-400">Delete Account</p>
-                      <p className="text-xs text-zinc-500">Permanently delete your account and lists.</p>
+                      <p className="mt-0.5 text-xs text-zinc-500">Permanently delete your account.</p>
                     </div>
                     <button
                       type="button"
                       disabled={busy}
                       onClick={handleDeleteAccount}
-                      className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl border border-red-900/40 bg-red-950/40 px-4 py-2.5 text-sm font-medium text-red-300 transition hover:bg-red-900/60 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex w-28 sm:w-32 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-red-900/40 bg-red-950/40 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-900/60 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
                     >
                       <TrashIcon />
-                      Delete account
+                      <span>Delete</span>
                     </button>
                   </div>
                 </div>
@@ -434,7 +438,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
             {/* TAB: ABOUT */}
             {activeTab === "about" ? (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-4">
                 <div>
                   <h3 className="text-lg font-semibold text-zinc-100">AniList</h3>
                   <p className="mt-1 text-sm text-zinc-400">A modern anime tracking application built with React, Tailwind CSS, and Firebase.</p>
