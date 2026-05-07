@@ -222,38 +222,40 @@ export default function PublicUserListPage() {
             </div>
           ) : (
             <>
-              {/* Minimalist Profile Header Card */}
-              <section className="flex items-center justify-between gap-5 rounded-2xl border border-zinc-800/60 bg-zinc-900/20 p-5 sm:px-6 sm:py-6">
-                <div className="flex items-center gap-5 overflow-hidden">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-xl font-medium text-zinc-300 sm:h-20 sm:w-20 sm:text-2xl">
-                    {avatarDataUrl ? (
-                      <img src={avatarDataUrl} alt="" aria-hidden="true" className="h-full w-full object-cover" />
-                    ) : (
-                      userInitial
-                    )}
+              {/* Minimalist Profile Header Card (hidden during search) */}
+              {!showingSearch ? (
+                <section className="flex items-center justify-between gap-5 rounded-2xl border border-zinc-800/60 bg-zinc-900/20 p-5 sm:px-6 sm:py-6">
+                  <div className="flex items-center gap-5 overflow-hidden">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-xl font-medium text-zinc-300 sm:h-20 sm:w-20 sm:text-2xl">
+                      {avatarDataUrl ? (
+                        <img src={avatarDataUrl} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+                      ) : (
+                        userInitial
+                      )}
+                    </div>
+
+                    {/* Middle Section: Name & Bio */}
+                    <div className="min-w-0 flex-1">
+                      <h2 className="truncate text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
+                        {userLabel}
+                      </h2>
+                      {bio?.trim() ? (
+                        <p className="mt-1 truncate text-sm text-zinc-400 sm:text-base">
+                          {bio}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
 
-                  {/* Middle Section: Name & Bio */}
-                  <div className="min-w-0 flex-1">
-                    <h2 className="truncate text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
-                      {userLabel}
-                    </h2>
-                    {bio?.trim() ? (
-                      <p className="mt-1 truncate text-sm text-zinc-400 sm:text-base">
-                        {bio}
-                      </p>
-                    ) : null}
+                  {/* Right Section: Stats */}
+                  <div className="ml-auto flex shrink-0 items-center pl-5 text-right sm:pl-8">
+                    <div className="flex flex-col items-center justify-center">
+                      <span className="text-xs font-medium text-zinc-500">Total</span>
+                      <span className="text-2xl font-semibold text-zinc-100 sm:text-3xl">{sortedItems.length}</span>
+                    </div>
                   </div>
-                </div>
-
-                {/* Right Section: Stats */}
-                <div className="ml-auto flex shrink-0 items-center pl-5 text-right sm:pl-8">
-                  <div className="flex flex-col items-center justify-center">
-                    <span className="text-xs font-medium text-zinc-500">Total</span>
-                    <span className="text-2xl font-semibold text-zinc-100 sm:text-3xl">{sortedItems.length}</span>
-                  </div>
-                </div>
-              </section>
+                </section>
+              ) : null}
 
               {showingSearch ? (
                 <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">

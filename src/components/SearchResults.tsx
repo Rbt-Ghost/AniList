@@ -18,22 +18,27 @@ export default function SearchResults({
   onSelect,
 }: SearchResultsProps) {
   const [results, setResults] = useState<Anime[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  // Default to true so the very first search instantly shows skeletons
+  const [searchLoading, setSearchLoading] = useState(true);
   const [searchError, setSearchError] = useState<string | null>(null);
   const trimmedQuery = useMemo(() => query.trim(), [query]);
   const showingSearch = trimmedQuery.length > 0;
 
   useEffect(() => {
     if (!showingSearch) {
+      setResults([]);
       return;
     }
+
+    // Instantly trigger loading and clear errors while the user is typing
+    // to prevent the "No matches" flash during the debounce delay.
+    setSearchLoading(true);
+    setSearchError(null);
 
     const controller = new AbortController();
     const handle = window.setTimeout(() => {
       (async () => {
         try {
-          setSearchLoading(true);
-          setSearchError(null);
           const data = await searchAnime(trimmedQuery, controller.signal);
           setResults(data);
         } catch (e) {

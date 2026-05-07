@@ -101,8 +101,8 @@ export default function AnimeListPage() {
       <main className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 sm:pt-8">
         <div className="space-y-6 sm:space-y-8">
           
-          {/* Minimalist Profile Header Card */}
-          {user ? (
+          {/* Minimalist Profile Header Card (hidden during search) */}
+          {user && !showingSearch ? (
             <section className="flex items-center justify-between gap-5 rounded-2xl border border-zinc-800/60 bg-zinc-900/20 p-5 sm:px-6 sm:py-6">
               <div className="flex items-center gap-5 overflow-hidden">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-xl font-medium text-zinc-300 sm:h-20 sm:w-20 sm:text-2xl">
