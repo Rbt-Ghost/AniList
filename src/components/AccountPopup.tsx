@@ -83,6 +83,14 @@ function ExternalLinkIcon() {
   );
 }
 
+function VerifiedIcon() {
+  return (
+    <svg fill="currentColor" viewBox="0 0 24 24" strokeWidth={0} className="h-3 w-3 text-blue-400">
+      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+    </svg>
+  );
+}
+
 // --- Component ---
 
 export default function AccountPopup({ open, user, onClose }: Props) {
@@ -92,6 +100,8 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -132,6 +142,8 @@ export default function AccountPopup({ open, user, onClose }: Props) {
     if (!open) return;
     clearMessages();
     setBusy(false);
+    setDeleteConfirmOpen(false);
+    setDeleteConfirmText("");
   }, [open]);
 
   useEffect(() => {
@@ -139,13 +151,18 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (deleteConfirmOpen) {
+          setDeleteConfirmOpen(false);
+          return;
+        }
+
         onClose();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, open]);
+  }, [deleteConfirmOpen, onClose, open]);
 
   if (!open) return null;
 
@@ -224,13 +241,12 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm("Are you sure you want to delete your account? This action cannot be undone.");
-    if (!confirmed) return;
-
     try {
       clearMessages();
       setBusy(true);
       await deleteAccount();
+      setDeleteConfirmOpen(false);
+      setDeleteConfirmText("");
       onClose();
     } catch (e) {
       setError(getFriendlyAuthError(e));
@@ -238,6 +254,9 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       setBusy(false);
     }
   };
+
+  const DELETE_CONFIRM_PHRASE = "DELETE";
+  const canConfirmDelete = deleteConfirmText.trim().toUpperCase() === DELETE_CONFIRM_PHRASE;
 
   return (
     // pb-8 prevents overlaying on iOS home bars, fallback to pb-4 on desktop
@@ -349,7 +368,14 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                 </div>
 
                 <div className="block w-full text-center">
-                  <label className="mb-2 block text-sm font-medium text-zinc-400">{userLabel}</label>
+                  <div className="mb-2 flex items-center justify-center gap-2">
+                    {user.emailVerified ? (
+                      <div className="flex items-center justify-center h-5 w-5 rounded-full border-2 border-blue-400">
+                        <VerifiedIcon />
+                      </div>
+                    ) : null}
+                    <label className="block text-sm font-medium text-zinc-400">{userLabel}</label>
+                  </div>
                   <textarea
                     ref={bioRef}
                     value={bio}
@@ -425,7 +451,11 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={handleDeleteAccount}
+                      onClick={() => {
+                        clearMessages();
+                        setDeleteConfirmOpen(true);
+                        setDeleteConfirmText("");
+                      }}
                       className="inline-flex w-28 sm:w-32 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-red-900/40 bg-red-950/40 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-900/60 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
                     >
                       <TrashIcon />
@@ -477,6 +507,52 @@ export default function AccountPopup({ open, user, onClose }: Props) {
           </div>
         </div>
       </section>
+
+      {deleteConfirmOpen ? (
+        <div className="absolute inset-0 z-60 flex items-center justify-center bg-zinc-950/70 px-4 backdrop-blur-sm">
+          <section className="w-full max-w-md rounded-2xl border border-red-900/40 bg-zinc-950 p-5 shadow-2xl shadow-black/60">
+            <h3 className="text-base font-semibold text-red-300">Delete account permanently?</h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              This will remove your profile and anime list data. This action cannot be undone.
+            </p>
+
+            <label className="mt-4 block">
+              <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                Type DELETE to confirm
+              </span>
+              <input
+                value={deleteConfirmText}
+                onChange={(event) => setDeleteConfirmText(event.target.value)}
+                autoFocus
+                placeholder="DELETE"
+                className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition focus:border-zinc-600 focus:bg-zinc-900 focus:ring-4 focus:ring-zinc-800/50"
+              />
+            </label>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmText("");
+                }}
+                className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy || !canConfirmDelete}
+                onClick={handleDeleteAccount}
+                className="rounded-xl border border-red-900/50 bg-red-950/60 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-900/70 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {busy ? "Deleting..." : "Delete account"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
