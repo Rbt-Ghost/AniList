@@ -11,9 +11,21 @@ import {
   updateProfile,
   type User,
 } from "firebase/auth";
-import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  runTransaction,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebase.ts";
+import { makeFriendSnapshot, normalizeUsername, usernameDocId } from "../utils/social.ts";
 
 type SignUpInput = {
   email: string;
@@ -95,6 +107,80 @@ function normalizeProfile(raw: unknown): UserProfile {
   };
 }
 
+async function syncUsernameDirectoryEntry(
+  uid: string,
+  previousDisplayName: string | null,
+  nextDisplayName: string,
+  avatarDataUrl: string | null,
+  bio: string
+) {
+  const nextDocId = usernameDocId(nextDisplayName);
+  if (!nextDocId) {
+    throw new Error("Username cannot be empty.");
+  }
+
+  const previousDocId = previousDisplayName ? usernameDocId(previousDisplayName) : null;
+
+  await runTransaction(db, async (transaction) => {
+    const nextRef = doc(db, "usernames", nextDocId);
+    const nextSnap = await transaction.get(nextRef);
+
+    if (nextSnap.exists() && nextSnap.data().uid !== uid) {
+      throw new Error("That username is already taken.");
+    }
+
+    if (previousDocId && previousDocId !== nextDocId) {
+      const previousRef = doc(db, "usernames", previousDocId);
+      const previousSnap = await transaction.get(previousRef);
+
+      if (previousSnap.exists() && previousSnap.data().uid === uid) {
+        transaction.delete(previousRef);
+      }
+    }
+
+    transaction.set(
+      nextRef,
+      {
+        uid,
+        displayName: nextDisplayName,
+        avatarDataUrl,
+        bio,
+        normalizedName: normalizeUsername(nextDisplayName),
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    );
+  });
+}
+
+async function refreshFriendshipSnapshots(uid: string, displayName: string, avatarDataUrl: string | null, bio: string) {
+  try {
+    const snapshotQuery = query(collection(db, "friendships"), where("participants", "array-contains", uid));
+    const snapshot = await getDocs(snapshotQuery);
+
+    await Promise.all(
+      snapshot.docs.map((relationshipDoc) => {
+        const data = relationshipDoc.data() as { requestedByUid?: string } | undefined;
+        const snapshotData = makeFriendSnapshot(uid, displayName, avatarDataUrl, bio);
+
+        if (data?.requestedByUid === uid) {
+          return updateDoc(relationshipDoc.ref, {
+            requesterSnapshot: snapshotData,
+            updatedAt: Date.now(),
+          });
+        }
+
+        return updateDoc(relationshipDoc.ref, {
+          recipientSnapshot: snapshotData,
+          updatedAt: Date.now(),
+        });
+      })
+    );
+  } catch (error) {
+    console.warn("Failed to refresh friendship snapshots", error);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -164,9 +250,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authLoading,
       signUp: async ({ email, password, displayName }) => {
         const result = await createUserWithEmailAndPassword(auth, email, password);
+        const resolvedDisplayName = (displayName?.trim() || email.split("@")[0] || "User").trim();
 
-        if (displayName && displayName.trim().length > 0) {
-          await updateProfile(result.user, { displayName: displayName.trim() });
+        await updateProfile(result.user, { displayName: resolvedDisplayName });
+
+        try {
+          await syncUsernameDirectoryEntry(result.user.uid, null, resolvedDisplayName, null, "");
+        } catch (error) {
+          try {
+            await deleteUser(result.user);
+          } catch {
+            // Ignore rollback failures.
+          }
+
+          throw error;
         }
 
         await sendEmailVerification(result.user);
@@ -199,6 +296,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const current = auth.currentUser;
         if (!current) return;
 
+        const currentDisplayName = current.displayName?.trim() || null;
+
         // Best-effort cleanup of user data before deleting the auth user.
         try {
           await deleteDoc(doc(db, "users", current.uid, "animeList", "state"));
@@ -211,6 +310,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearCachedProfile(current.uid);
         } catch (e) {
           console.warn("Failed to delete user profile from Firestore", e);
+        }
+
+        try {
+          const friendshipsQuery = query(collection(db, "friendships"), where("participants", "array-contains", current.uid));
+          const friendshipsSnapshot = await getDocs(friendshipsQuery);
+          await Promise.all(friendshipsSnapshot.docs.map((relationshipDoc) => deleteDoc(relationshipDoc.ref)));
+        } catch (e) {
+          console.warn("Failed to delete user friendships from Firestore", e);
+        }
+
+        if (currentDisplayName) {
+          try {
+            await deleteDoc(doc(db, "usernames", usernameDocId(currentDisplayName)));
+          } catch (e) {
+            console.warn("Failed to delete username index from Firestore", e);
+          }
         }
 
         await deleteUser(current);
@@ -228,9 +343,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error("You must be logged in to update your profile.");
         }
 
-        if (typeof input.displayName === "string") {
-          const trimmedDisplayName = input.displayName.trim();
-          await updateProfile(current, { displayName: trimmedDisplayName });
+        const previousDisplayName = current.displayName?.trim() || null;
+        const nextDisplayName = typeof input.displayName === "string" ? input.displayName.trim() : null;
+        const nextAvatarDataUrl = input.avatarDataUrl !== undefined ? input.avatarDataUrl : userProfile.avatarDataUrl;
+        const nextBio = input.bio !== undefined ? input.bio.trim().slice(0, 240) : userProfile.bio;
+
+        if (nextDisplayName !== null) {
+          await updateProfile(current, { displayName: nextDisplayName });
           await current.reload();
           setUser(auth.currentUser);
         }
@@ -240,7 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const nextProfile: Partial<UserProfile> = {};
 
           if (input.bio !== undefined) {
-            nextProfile.bio = input.bio.trim().slice(0, 240);
+            nextProfile.bio = nextBio;
           }
 
           if (input.avatarDataUrl !== undefined) {
@@ -265,6 +384,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ...userProfile,
             ...nextProfile,
           });
+        }
+
+        const resolvedDisplayName = nextDisplayName ?? previousDisplayName;
+        if (resolvedDisplayName) {
+          try {
+            await syncUsernameDirectoryEntry(current.uid, previousDisplayName, resolvedDisplayName, nextAvatarDataUrl, nextBio);
+            await refreshFriendshipSnapshots(current.uid, resolvedDisplayName, nextAvatarDataUrl, nextBio);
+          } catch (error) {
+            if (nextDisplayName !== null && previousDisplayName) {
+              try {
+                await updateProfile(current, { displayName: previousDisplayName });
+                await current.reload();
+                setUser(auth.currentUser);
+              } catch {
+                // Ignore rollback failures.
+              }
+            }
+
+            throw error;
+          }
         }
       },
     };

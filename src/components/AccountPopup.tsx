@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState, useRef, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { User } from "firebase/auth";
+import { collection, deleteDoc, doc, getDoc, onSnapshot, query, runTransaction, where } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.tsx";
 import { getFriendlyAuthError } from "../utils/firebaseAuthErrors.ts";
 import { lockScroll, unlockScroll } from "../utils/scrollLock";
+import { db } from "../firebase/firebase.ts";
+import { friendshipDocId, makeFriendSnapshot, type FriendshipRecord, type UserDirectoryEntry, usernameDocId } from "../utils/social.ts";
 
 type Props = {
   open: boolean;
@@ -11,7 +15,7 @@ type Props = {
   onClose: () => void;
 };
 
-type TabId = "user" | "settings" | "about";
+type TabId = "user" | "friends" | "settings" | "about";
 
 const MAX_AVATAR_SIZE_BYTES = 1_000_000;
 
@@ -91,9 +95,35 @@ function VerifiedIcon() {
   );
 }
 
+function FriendsIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 // --- Component ---
 
 export default function AccountPopup({ open, user, onClose }: Props) {
+  const navigate = useNavigate();
   const { userProfile, updateUserProfile, logOut, deleteAccount } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabId>("user");
@@ -107,7 +137,13 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   const [bio, setBio] = useState("");
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
 
+  const [friendQuery, setFriendQuery] = useState("");
+  const [friendSearchResult, setFriendSearchResult] = useState<UserDirectoryEntry | null>(null);
+  const [friendships, setFriendships] = useState<FriendshipRecord[]>([]);
+  const [friendActionMenuUid, setFriendActionMenuUid] = useState<string | null>(null);
+
   const bioRef = useRef<HTMLTextAreaElement>(null);
+  const friendMenuRef = useRef<HTMLDivElement | null>(null);
 
   const userLabel = useMemo(() => {
     return (user.displayName?.trim() || user.email?.trim() || "User").trim();
@@ -137,6 +173,52 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       bioRef.current.style.height = `${bioRef.current.scrollHeight}px`;
     }
   }, [bio, activeTab]);
+
+  useEffect(() => {
+    if (!open || activeTab !== "friends") return;
+
+    const friendshipsQuery = query(collection(db, "friendships"), where("participants", "array-contains", user.uid));
+    const unsubscribe = onSnapshot(
+      friendshipsQuery,
+      (snapshot) => {
+        const nextFriendships = snapshot.docs
+          .map((relationshipDoc) => relationshipDoc.data() as FriendshipRecord)
+          .sort((left, right) => right.updatedAt - left.updatedAt);
+
+        setFriendships(nextFriendships);
+      },
+      (snapshotError) => {
+        console.error("Failed to load friendships", snapshotError);
+        setError("Failed to load your friends list.");
+      }
+    );
+
+    return unsubscribe;
+  }, [activeTab, open, user.uid]);
+
+  useEffect(() => {
+    if (!friendActionMenuUid) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (friendMenuRef.current?.contains(target)) return;
+      setFriendActionMenuUid(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFriendActionMenuUid(null);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [friendActionMenuUid]);
 
   useEffect(() => {
     if (!open) return;
@@ -169,6 +251,176 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   const clearMessages = () => {
     setError(null);
     setSuccess(null);
+  };
+
+  const getRelationshipForUser = (targetUid: string) => {
+    return friendships.find((relationship) => relationship.participants.includes(targetUid));
+  };
+
+  const getOtherSnapshot = (relationship: FriendshipRecord) => {
+    if (relationship.requesterSnapshot.uid === user.uid) {
+      return relationship.recipientSnapshot;
+    }
+
+    return relationship.requesterSnapshot;
+  };
+
+  const handleSearchFriend = async () => {
+    const nextQuery = friendQuery.trim();
+    if (!nextQuery) {
+      setError("Enter a username to search.");
+      setSuccess(null);
+      return;
+    }
+
+    try {
+      setBusy(true);
+      setError(null);
+      setSuccess(null);
+      const result = await getDoc(doc(db, "usernames", usernameDocId(nextQuery)));
+
+      if (!result.exists()) {
+        setFriendSearchResult(null);
+        setError("No user found with that username.");
+        return;
+      }
+
+      const data = result.data() as Partial<UserDirectoryEntry>;
+      if (!data.uid || !data.displayName) {
+        setFriendSearchResult(null);
+        setError("This username is missing profile data.");
+        return;
+      }
+
+      if (data.uid === user.uid) {
+        setFriendSearchResult(null);
+        setError("You cannot add yourself as a friend.");
+        return;
+      }
+
+      setFriendSearchResult({
+        uid: data.uid,
+        displayName: data.displayName,
+        avatarDataUrl: typeof data.avatarDataUrl === "string" ? data.avatarDataUrl : null,
+        bio: typeof data.bio === "string" ? data.bio : undefined,
+      });
+    } catch (searchError) {
+      console.error("Failed to search user", searchError);
+      setFriendSearchResult(null);
+      setError("Could not search for that user.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSendFriendRequest = async (target: UserDirectoryEntry) => {
+    const relationshipRef = doc(db, "friendships", friendshipDocId(user.uid, target.uid));
+    const requesterSnapshot = makeFriendSnapshot(user.uid, userLabel, userProfile.avatarDataUrl, userProfile.bio);
+    const recipientSnapshot = makeFriendSnapshot(target.uid, target.displayName, target.avatarDataUrl, target.bio);
+
+    try {
+      setBusy(true);
+      setError(null);
+      setSuccess(null);
+
+      await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(relationshipRef);
+
+        if (!snapshot.exists()) {
+          transaction.set(relationshipRef, {
+            participants: [user.uid, target.uid],
+            requestedByUid: user.uid,
+            status: "pending",
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            requesterSnapshot,
+            recipientSnapshot,
+          });
+          return;
+        }
+
+        const existing = snapshot.data() as FriendshipRecord;
+
+        if (existing.status === "accepted") {
+          throw new Error("You are already friends with this user.");
+        }
+
+        if (existing.requestedByUid === user.uid) {
+          throw new Error("A friend request is already pending.");
+        }
+
+        transaction.update(relationshipRef, {
+          status: "accepted",
+          updatedAt: Date.now(),
+          requesterSnapshot: existing.requestedByUid === user.uid ? requesterSnapshot : recipientSnapshot,
+          recipientSnapshot: existing.requestedByUid === user.uid ? recipientSnapshot : requesterSnapshot,
+        });
+      });
+
+      setSuccess("Friend request sent.");
+      setFriendSearchResult(null);
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "Could not send the friend request.";
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAcceptFriendRequest = async (relationship: FriendshipRecord) => {
+    const relationshipRef = doc(db, "friendships", friendshipDocId(relationship.participants[0], relationship.participants[1]));
+
+    try {
+      setBusy(true);
+      setError(null);
+      setSuccess(null);
+
+      await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(relationshipRef);
+        if (!snapshot.exists()) return;
+
+        const existing = snapshot.data() as FriendshipRecord;
+        if (existing.status === "accepted") return;
+        if (existing.requestedByUid === user.uid) {
+          throw new Error("This request was sent by you.");
+        }
+
+        transaction.update(relationshipRef, {
+          status: "accepted",
+          updatedAt: Date.now(),
+        });
+      });
+
+      setSuccess("Friend request accepted.");
+    } catch (acceptError) {
+      const message = acceptError instanceof Error ? acceptError.message : "Could not accept the request.";
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemoveRelationship = async (relationship: FriendshipRecord, message: string) => {
+    const relationshipRef = doc(db, "friendships", friendshipDocId(relationship.participants[0], relationship.participants[1]));
+
+    try {
+      setBusy(true);
+      setError(null);
+      setSuccess(null);
+      await deleteDoc(relationshipRef);
+      setSuccess(message);
+    } catch (removeError) {
+      const nextMessage = removeError instanceof Error ? removeError.message : "Could not update this friendship.";
+      setError(nextMessage);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOpenFriendList = (username: string, listStatus: "plan-to-watch" | "watching" | "completed") => {
+    setFriendActionMenuUid(null);
+    onClose();
+    navigate(`/u/${encodeURIComponent(username)}/${listStatus}`);
   };
 
   const handleAvatarFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -258,6 +510,15 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   const DELETE_CONFIRM_PHRASE = "DELETE";
   const canConfirmDelete = deleteConfirmText.trim().toUpperCase() === DELETE_CONFIRM_PHRASE;
 
+  const acceptedFriends = friendships.filter((relationship) => relationship.status === "accepted");
+  const incomingFriendRequests = friendships.filter(
+    (relationship) => relationship.status === "pending" && relationship.requestedByUid !== user.uid
+  );
+  const outgoingFriendRequests = friendships.filter(
+    (relationship) => relationship.status === "pending" && relationship.requestedByUid === user.uid
+  );
+  const currentSearchRelationship = friendSearchResult ? getRelationshipForUser(friendSearchResult.uid) : undefined;
+
   return (
     // pb-8 prevents overlaying on iOS home bars, fallback to pb-4 on desktop
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/80 px-4 pb-8 pt-4 backdrop-blur-sm sm:items-center sm:pb-4">
@@ -302,6 +563,20 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
             <button
               type="button"
+              title="Friends"
+              onClick={() => {
+                setActiveTab("friends");
+                clearMessages();
+              }}
+              className={`flex flex-1 sm:flex-none items-center justify-center rounded-xl p-3 sm:p-4 text-sm font-medium transition-all sm:mb-2 ${
+                activeTab === "friends" ? "bg-zinc-800 text-zinc-50 shadow-sm" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+              }`}
+            >
+              <FriendsIcon />
+            </button>
+
+            <button
+              type="button"
               title="Settings"
               onClick={() => {
                 setActiveTab("settings");
@@ -330,7 +605,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
           </nav>
 
           {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-5 pt-6 sm:p-8">
+          <div className="flex-1 overflow-y-auto p-5 pt-6 sm:p-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             
             {/* Alerts */}
             {error ? (
@@ -397,6 +672,241 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                     Save profile
                   </button>
                 </div>
+              </div>
+            ) : null}
+
+            {/* TAB: FRIENDS */}
+            {activeTab === "friends" ? (
+              <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-2">
+                
+                {/* Search / Find Friends */}
+                <section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-zinc-400">Add Friend</h3>
+                  </div>
+                  <div className="flex flex-row items-center gap-2 rounded-2xl border border-zinc-800/80 bg-zinc-900/30 p-1.5 focus-within:border-zinc-600 focus-within:ring-4 focus-within:ring-zinc-800/50 transition">
+                    <input
+                      value={friendQuery}
+                      onChange={(event) => setFriendQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") void handleSearchFriend();
+                      }}
+                      placeholder="Search username..."
+                      className="w-full bg-transparent px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void handleSearchFriend()}
+                      className="shrink-0 rounded-xl bg-zinc-100 px-4 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Search
+                    </button>
+                  </div>
+
+                  {friendSearchResult ? (
+                    <div className="mt-3 flex items-center justify-between rounded-2xl border border-zinc-800/80 bg-zinc-900/20 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                          {friendSearchResult.avatarDataUrl ? (
+                            <img src={friendSearchResult.avatarDataUrl} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            friendSearchResult.displayName[0]?.toUpperCase() ?? "U"
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-zinc-100">{friendSearchResult.displayName}</div>
+                          {friendSearchResult.bio ? (
+                            <div className="truncate text-xs text-zinc-500">{friendSearchResult.bio}</div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {currentSearchRelationship?.status === "accepted" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenFriendList(friendSearchResult.displayName, "plan-to-watch")}
+                          className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700"
+                        >
+                          View list
+                        </button>
+                      ) : currentSearchRelationship?.status === "pending" && currentSearchRelationship.requestedByUid === user.uid ? (
+                        <span className="rounded-full bg-zinc-800/50 px-3 py-1 text-xs text-zinc-400">Request sent</span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void handleSendFriendRequest(friendSearchResult)}
+                          className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Add friend
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+                </section>
+
+                {/* Friend Requests */}
+                {(incomingFriendRequests.length > 0 || outgoingFriendRequests.length > 0) ? (
+                  <section>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-zinc-400">Requests</h3>
+                      <span className="text-xs text-zinc-600">{incomingFriendRequests.length + outgoingFriendRequests.length}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      {incomingFriendRequests.map((relationship) => {
+                        const friend = getOtherSnapshot(relationship);
+                        return (
+                          <div key={`${relationship.participants[0]}-${relationship.participants[1]}-incoming`} className="group flex items-center justify-between gap-3 rounded-2xl p-2 transition hover:bg-zinc-900/40">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                                {friend.avatarDataUrl ? (
+                                  <img src={friend.avatarDataUrl} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  friend.displayName[0]?.toUpperCase() ?? "U"
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
+                                {friend.bio ? (
+                                  <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
+                                ) : (
+                                  <div className="text-xs text-zinc-500">Wants to be friends</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void handleAcceptFriendRequest(relationship)}
+                                className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-white disabled:opacity-50"
+                                disabled={busy}
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleRemoveRelationship(relationship, "Friend request declined.")}
+                                className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700 disabled:opacity-50"
+                                disabled={busy}
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {outgoingFriendRequests.map((relationship) => {
+                        const friend = getOtherSnapshot(relationship);
+                        return (
+                          <div key={`${relationship.participants[0]}-${relationship.participants[1]}-outgoing`} className="group flex items-center justify-between gap-3 rounded-2xl p-2 transition hover:bg-zinc-900/40">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                                {friend.avatarDataUrl ? (
+                                  <img src={friend.avatarDataUrl} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  friend.displayName[0]?.toUpperCase() ?? "U"
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
+                                {friend.bio ? (
+                                  <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
+                                ) : (
+                                  <div className="text-xs text-zinc-500">Request sent</div>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void handleRemoveRelationship(relationship, "Friend request canceled.")}
+                              className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700 disabled:opacity-50"
+                              disabled={busy}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ) : null}
+
+                {/* Friends List */}
+                <section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-zinc-400">Friends</h3>
+                    <span className="text-xs text-zinc-600">{acceptedFriends.length}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {acceptedFriends.length > 0 ? (
+                      acceptedFriends.map((relationship) => {
+                        const friend = getOtherSnapshot(relationship);
+                        const actionMenuOpen = friendActionMenuUid === friend.uid;
+
+                        return (
+                          <div key={`${relationship.participants[0]}-${relationship.participants[1]}`} className="group relative flex items-center justify-between gap-3 rounded-2xl p-2 transition hover:bg-zinc-900/40">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                                {friend.avatarDataUrl ? (
+                                  <img src={friend.avatarDataUrl} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  friend.displayName[0]?.toUpperCase() ?? "U"
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
+                                {friend.bio ? (
+                                  <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            <div className="relative shrink-0" ref={actionMenuOpen ? friendMenuRef : undefined}>
+                              <button
+                                type="button"
+                                onClick={() => setFriendActionMenuUid(actionMenuOpen ? null : friend.uid)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 opacity-0 transition group-hover:opacity-100 focus:opacity-100 sm:opacity-100"
+                              >
+                                View list
+                                <ChevronDownIcon open={actionMenuOpen} />
+                              </button>
+
+                              {actionMenuOpen ? (
+                                <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
+                                  {(["plan-to-watch", "watching", "completed"] as const).map((listStatus) => (
+                                    <button
+                                      key={listStatus}
+                                      type="button"
+                                      onClick={() => handleOpenFriendList(friend.displayName, listStatus)}
+                                      className="flex w-full items-center justify-between border-b border-zinc-800/50 px-4 py-3 text-left text-xs font-medium text-zinc-300 transition last:border-b-0 hover:bg-zinc-800 hover:text-zinc-50"
+                                    >
+                                      {listStatus === "plan-to-watch"
+                                        ? "Plan to watch"
+                                        : listStatus === "watching"
+                                          ? "Watching"
+                                          : "Completed"}
+                                    </button>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleRemoveRelationship(relationship, "Friend removed.")}
+                                    className="flex w-full items-center justify-between bg-red-950/10 px-4 py-3 text-left text-xs font-medium text-red-400 transition hover:bg-red-950/40 hover:text-red-300"
+                                  >
+                                    Unfriend
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="py-4 text-center text-sm text-zinc-600">No friends yet.</div>
+                    )}
+                  </div>
+                </section>
               </div>
             ) : null}
 
