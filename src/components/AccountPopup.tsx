@@ -867,14 +867,14 @@ export default function AccountPopup({ open, user, onClose }: Props) {
                               <button
                                 type="button"
                                 onClick={() => setFriendActionMenuUid(actionMenuOpen ? null : friend.uid)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 opacity-0 transition group-hover:opacity-100 focus:opacity-100 sm:opacity-100"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700"
                               >
                                 View list
                                 <ChevronDownIcon open={actionMenuOpen} />
                               </button>
 
                               {actionMenuOpen ? (
-                                <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
+                                <div className="absolute bottom-full right-0 z-20 mb-2 w-44 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40 sm:top-full sm:mb-0 sm:mt-2">
                                   {(["plan-to-watch", "watching", "completed"] as const).map((listStatus) => (
                                     <button
                                       key={listStatus}
