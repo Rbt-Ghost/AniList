@@ -43,6 +43,29 @@ function ChevronDownIcon({ open }: { open: boolean }) {
   );
 }
 
+function VerifiedBadge() {
+  return (
+    <span
+      className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-blue-400/60 bg-blue-500/10 text-blue-400"
+      aria-label="Verified user"
+      title="Verified user"
+    >
+      <svg fill="currentColor" viewBox="0 0 24 24" strokeWidth={0} className="h-2.5 w-2.5">
+        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+      </svg>
+    </span>
+  );
+}
+
+function FriendName({ displayName, emailVerified }: { displayName: string; emailVerified: boolean }) {
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      <div className="truncate text-sm font-medium text-zinc-100">{displayName}</div>
+      {emailVerified ? <VerifiedBadge /> : null}
+    </div>
+  );
+}
+
 export default function FriendsTab({
   friendQuery,
   onFriendQueryChange,
@@ -101,7 +124,7 @@ export default function FriendsTab({
                 )}
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-zinc-100">{friendSearchResult.displayName}</div>
+                <FriendName displayName={friendSearchResult.displayName} emailVerified={friendSearchResult.emailVerified} />
                 {friendSearchResult.bio ? (
                   <div className="truncate text-xs text-zinc-500">{friendSearchResult.bio}</div>
                 ) : null}
@@ -159,7 +182,7 @@ export default function FriendsTab({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
+                          <FriendName displayName={friend.displayName} emailVerified={friend.emailVerified} />
                           {friend.bio ? (
                             <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
                           ) : (
@@ -202,7 +225,7 @@ export default function FriendsTab({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
+                          <FriendName displayName={friend.displayName} emailVerified={friend.emailVerified} />
                           {friend.bio ? (
                             <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
                           ) : (
@@ -247,7 +270,7 @@ export default function FriendsTab({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-zinc-100">{friend.displayName}</div>
+                          <FriendName displayName={friend.displayName} emailVerified={friend.emailVerified} />
                           {friend.bio ? (
                             <div className="truncate text-xs text-zinc-500">{friend.bio}</div>
                           ) : null}

@@ -112,6 +112,7 @@ async function syncUsernameDirectoryEntry(
   previousDisplayName: string | null,
   nextDisplayName: string,
   avatarDataUrl: string | null,
+  emailVerified: boolean,
   bio: string
 ) {
   const nextDocId = usernameDocId(nextDisplayName);
@@ -144,6 +145,7 @@ async function syncUsernameDirectoryEntry(
         uid,
         displayName: nextDisplayName,
         avatarDataUrl,
+        emailVerified,
         bio,
         normalizedName: normalizeUsername(nextDisplayName),
         updatedAt: Date.now(),
@@ -153,7 +155,13 @@ async function syncUsernameDirectoryEntry(
   });
 }
 
-async function refreshFriendshipSnapshots(uid: string, displayName: string, avatarDataUrl: string | null, bio: string) {
+async function refreshFriendshipSnapshots(
+  uid: string,
+  displayName: string,
+  avatarDataUrl: string | null,
+  emailVerified: boolean,
+  bio: string
+) {
   try {
     const snapshotQuery = query(collection(db, "friendships"), where("participants", "array-contains", uid));
     const snapshot = await getDocs(snapshotQuery);
@@ -161,7 +169,7 @@ async function refreshFriendshipSnapshots(uid: string, displayName: string, avat
     await Promise.all(
       snapshot.docs.map((relationshipDoc) => {
         const data = relationshipDoc.data() as { requestedByUid?: string } | undefined;
-        const snapshotData = makeFriendSnapshot(uid, displayName, avatarDataUrl, bio);
+        const snapshotData = makeFriendSnapshot(uid, displayName, avatarDataUrl, emailVerified, bio);
 
         if (data?.requestedByUid === uid) {
           return updateDoc(relationshipDoc.ref, {
@@ -242,6 +250,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [uid]);
 
+  useEffect(() => {
+    if (!uid) return;
+
+    const resolvedDisplayName = user?.displayName?.trim() || null;
+    if (!resolvedDisplayName) return;
+
+    void syncUsernameDirectoryEntry(
+      uid,
+      resolvedDisplayName,
+      resolvedDisplayName,
+      userProfile.avatarDataUrl,
+      user?.emailVerified ?? false,
+      userProfile.bio
+    ).catch((error) => {
+      console.warn("Failed to refresh username directory entry", error);
+    });
+
+    void refreshFriendshipSnapshots(uid, resolvedDisplayName, userProfile.avatarDataUrl, user?.emailVerified ?? false, userProfile.bio).catch(
+      (error) => {
+        console.warn("Failed to refresh friendship snapshots", error);
+      }
+    );
+  }, [uid, user?.displayName, user?.emailVerified, userProfile.avatarDataUrl, userProfile.bio]);
+
   const value = useMemo<AuthContextValue>(() => {
     return {
       user,
@@ -255,7 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await updateProfile(result.user, { displayName: resolvedDisplayName });
 
         try {
-          await syncUsernameDirectoryEntry(result.user.uid, null, resolvedDisplayName, null, "");
+          await syncUsernameDirectoryEntry(result.user.uid, null, resolvedDisplayName, null, false, "");
         } catch (error) {
           try {
             await deleteUser(result.user);
@@ -344,6 +376,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const previousDisplayName = current.displayName?.trim() || null;
+        const currentEmailVerified = current.emailVerified;
         const nextDisplayName = typeof input.displayName === "string" ? input.displayName.trim() : null;
         const nextAvatarDataUrl = input.avatarDataUrl !== undefined ? input.avatarDataUrl : userProfile.avatarDataUrl;
         const nextBio = input.bio !== undefined ? input.bio.trim().slice(0, 240) : userProfile.bio;
@@ -389,8 +422,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const resolvedDisplayName = nextDisplayName ?? previousDisplayName;
         if (resolvedDisplayName) {
           try {
-            await syncUsernameDirectoryEntry(current.uid, previousDisplayName, resolvedDisplayName, nextAvatarDataUrl, nextBio);
-            await refreshFriendshipSnapshots(current.uid, resolvedDisplayName, nextAvatarDataUrl, nextBio);
+            await syncUsernameDirectoryEntry(
+              current.uid,
+              previousDisplayName,
+              resolvedDisplayName,
+              nextAvatarDataUrl,
+              currentEmailVerified,
+              nextBio
+            );
+            await refreshFriendshipSnapshots(current.uid, resolvedDisplayName, nextAvatarDataUrl, currentEmailVerified, nextBio);
           } catch (error) {
             if (nextDisplayName !== null && previousDisplayName) {
               try {

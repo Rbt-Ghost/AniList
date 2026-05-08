@@ -2,6 +2,7 @@ export type UserDirectoryEntry = {
   uid: string;
   displayName: string;
   avatarDataUrl: string | null;
+  emailVerified: boolean;
   bio?: string;
 };
 
@@ -11,6 +12,7 @@ export type FriendSnapshot = {
   uid: string;
   displayName: string;
   avatarDataUrl: string | null;
+  emailVerified: boolean;
   bio?: string;
 };
 
@@ -40,12 +42,14 @@ export function makeFriendSnapshot(
   uid: string,
   displayName: string,
   avatarDataUrl: string | null,
+  emailVerified: boolean,
   bio?: string
 ): FriendSnapshot {
   return {
     uid,
     displayName,
     avatarDataUrl,
+    emailVerified,
     bio,
   };
 }

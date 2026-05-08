@@ -249,6 +249,7 @@ export default function AccountPopup({ open, user, onClose }: Props) {
         uid: data.uid,
         displayName: data.displayName,
         avatarDataUrl: typeof data.avatarDataUrl === "string" ? data.avatarDataUrl : null,
+        emailVerified: typeof data.emailVerified === "boolean" ? data.emailVerified : false,
         bio: typeof data.bio === "string" ? data.bio : undefined,
       });
     } catch (searchError) {
@@ -262,8 +263,8 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
   const handleSendFriendRequest = async (target: UserDirectoryEntry) => {
     const relationshipRef = doc(db, "friendships", friendshipDocId(user.uid, target.uid));
-    const requesterSnapshot = makeFriendSnapshot(user.uid, userLabel, userProfile.avatarDataUrl, userProfile.bio);
-    const recipientSnapshot = makeFriendSnapshot(target.uid, target.displayName, target.avatarDataUrl, target.bio);
+    const requesterSnapshot = makeFriendSnapshot(user.uid, userLabel, userProfile.avatarDataUrl, user.emailVerified, userProfile.bio);
+    const recipientSnapshot = makeFriendSnapshot(target.uid, target.displayName, target.avatarDataUrl, target.emailVerified, target.bio);
 
     try {
       setBusy(true);
