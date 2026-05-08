@@ -95,11 +95,11 @@ export default function PublicUserListPage() {
   const normalizedStatus = isAnimeListStatus(status) ? status : "plan-to-watch";
   const trimmedQuery = query.trim();
   const showingSearch = trimmedQuery.length > 0;
+  const resolvedNotFound = !username || notFound;
+  const resolvedLoading = !!username && loading;
 
   useEffect(() => {
     if (!username) {
-      setNotFound(true);
-      setLoading(false);
       return;
     }
 
@@ -195,7 +195,7 @@ export default function PublicUserListPage() {
     }
   }, [entries, normalizedStatus, sortBy]);
 
-  if (notFound) {
+  if (resolvedNotFound) {
     return <NotFound />;
   }
 
@@ -209,7 +209,7 @@ export default function PublicUserListPage() {
       <main className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 sm:pt-8">
         <div className="space-y-6 sm:space-y-8">
           
-          {loading ? (
+          {resolvedLoading ? (
             <div className="flex min-h-[40vh] items-center justify-center rounded-3xl border border-zinc-800/80 bg-zinc-900/20 p-6 text-sm text-zinc-500">
               <div className="flex flex-col items-center gap-3">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300"></div>

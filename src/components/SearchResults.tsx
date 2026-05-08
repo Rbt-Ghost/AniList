@@ -26,14 +26,15 @@ export default function SearchResults({
 
   useEffect(() => {
     if (!showingSearch) {
-      setResults([]);
       return;
     }
 
     // Instantly trigger loading and clear errors while the user is typing
     // to prevent the "No matches" flash during the debounce delay.
-    setSearchLoading(true);
-    setSearchError(null);
+    const loadingHandle = window.setTimeout(() => {
+      setSearchLoading(true);
+      setSearchError(null);
+    }, 0);
 
     const controller = new AbortController();
     const handle = window.setTimeout(() => {
@@ -52,6 +53,7 @@ export default function SearchResults({
     }, debounceMs);
 
     return () => {
+      window.clearTimeout(loadingHandle);
       controller.abort();
       window.clearTimeout(handle);
     };

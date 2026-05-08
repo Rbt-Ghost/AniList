@@ -86,7 +86,7 @@ async function fetchWithRetry(path: string, signal?: AbortSignal): Promise<Respo
     } catch (error) {
       if (isAbortError(error)) throw error;
       if (attempt === MAX_RETRIES) {
-        throw new Error("Jikan request failed due to a network error. Please try again.");
+        throw new Error("Jikan request failed due to a network error. Please try again.", { cause: error });
       }
     }
 

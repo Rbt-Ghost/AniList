@@ -35,5 +35,7 @@ export function clearAllLocks(): void {
     previousOverflow.length = 0;
     document.body.style.overflow = "";
     document.documentElement.style.overflow = "";
-  } catch {}
+  } catch {
+    // Ignore failures.
+  }
 }

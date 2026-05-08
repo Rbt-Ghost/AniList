@@ -97,17 +97,24 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
   const userInitial = userLabel.length > 0 ? userLabel[0]!.toUpperCase() : "U";
 
+  function clearMessages() {
+    toast.dismiss();
+  }
+
   useEffect(() => {
     if (!open) return;
 
     lockScroll();
 
-    setDisplayName(user.displayName ?? "");
-    setBio(userProfile.bio ?? "");
-    setAvatarDataUrl(userProfile.avatarDataUrl ?? null);
-    setActiveTab("user");
+    const resetHandle = window.setTimeout(() => {
+      setDisplayName(user.displayName ?? "");
+      setBio(userProfile.bio ?? "");
+      setAvatarDataUrl(userProfile.avatarDataUrl ?? null);
+      setActiveTab("user");
+    }, 0);
 
     return () => {
+      window.clearTimeout(resetHandle);
       unlockScroll();
     };
   }, [open, user.displayName, userProfile.avatarDataUrl, userProfile.bio]);
@@ -123,7 +130,9 @@ export default function AccountPopup({ open, user, onClose }: Props) {
   useEffect(() => {
     if (!open || activeTab !== "friends") return;
 
-    setFriendsLoading(true);
+    const loadingHandle = window.setTimeout(() => {
+      setFriendsLoading(true);
+    }, 0);
 
     const friendshipsQuery = query(collection(db, "friendships"), where("participants", "array-contains", user.uid));
     const unsubscribe = onSnapshot(
@@ -143,7 +152,10 @@ export default function AccountPopup({ open, user, onClose }: Props) {
       }
     );
 
-    return unsubscribe;
+    return () => {
+      window.clearTimeout(loadingHandle);
+      unsubscribe();
+    };
   }, [activeTab, open, user.uid]);
 
   useEffect(() => {
@@ -172,14 +184,13 @@ export default function AccountPopup({ open, user, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    clearMessages();
-    setBusy(false);
-    setDeleteConfirmOpen(false);
-    setDeleteConfirmText("");
-  }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
+    const resetHandle = window.setTimeout(() => {
+      clearMessages();
+      setBusy(false);
+      setDeleteConfirmOpen(false);
+      setDeleteConfirmText("");
+    }, 0);
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -193,14 +204,13 @@ export default function AccountPopup({ open, user, onClose }: Props) {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(resetHandle);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [deleteConfirmOpen, onClose, open]);
 
   if (!open) return null;
-
-  const clearMessages = () => {
-    toast.dismiss();
-  };
 
   const getRelationshipForUser = (targetUid: string) => {
     return friendships.find((relationship) => relationship.participants.includes(targetUid));

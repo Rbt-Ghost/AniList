@@ -214,8 +214,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!uid) {
-      setUserProfile(EMPTY_PROFILE);
-      setProfileLoading(false);
       return;
     }
 
