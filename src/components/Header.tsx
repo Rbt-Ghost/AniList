@@ -138,9 +138,14 @@ export default function Header({
               <div className="relative">
                 <input
                   id="anime-search"
+                  name="anime-search"
                   value={query}
                   onChange={(e) => onQueryChange(e.target.value)}
                   placeholder="Search your next title..."
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  autoCapitalize="off"
                   className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 pr-10 text-sm text-zinc-50 outline-none ring-0 placeholder:text-zinc-500 focus:border-zinc-700"
                 />
                 {query.length > 0 ? (
