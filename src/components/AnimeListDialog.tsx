@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { lockScroll, unlockScroll } from "../utils/scrollLock";
 import type { Anime } from "../api/Jikan.ts";
 import {
@@ -88,16 +89,21 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
   if (!open) return null;
 
   const handleSubmit = () => {
+    const isUpdate = Boolean(existingEntry);
+
     saveAnime(anime, {
       status,
       watchedEpisodes: status === "completed" && totalEpisodes != null ? totalEpisodes : watchedEpisodes,
       score: score === "" ? null : score,
     });
+
+    toast.success(isUpdate ? "Anime updated in your list." : "Anime added to your list.");
     onClose();
   };
 
   const handleRemove = () => {
     removeAnime(anime.mal_id);
+    toast.success("Anime removed from your list.");
     onClose();
   };
 
