@@ -24,6 +24,19 @@ export default function AnimeListDialog({ anime, open, onClose }: Props) {
   const [watchedEpisodes, setWatchedEpisodes] = useState(() => existingEntry?.watchedEpisodes ?? 0);
   const [score, setScore] = useState<number | "">(() => existingEntry?.score ?? "");
 
+  useEffect(() => {
+    if (!open) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStatus(existingEntry?.status ?? "plan-to-watch");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWatchedEpisodes(existingEntry?.watchedEpisodes ?? 0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setScore(existingEntry?.score ?? "");
+    setStatusMenuOpen(false);
+    setScoreMenuOpen(false);
+  }, [existingEntry, open]);
+
   const totalEpisodes = anime.episodes ?? null;
   const canIncrementEpisodes = totalEpisodes == null || watchedEpisodes < totalEpisodes;
 
