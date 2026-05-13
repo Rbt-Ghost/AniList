@@ -21,6 +21,7 @@ export default function SearchResults({
   // Default to true so the very first search instantly shows skeletons
   const [searchLoading, setSearchLoading] = useState(true);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
   const trimmedQuery = useMemo(() => query.trim(), [query]);
   const showingSearch = trimmedQuery.length > 0;
 
@@ -57,7 +58,13 @@ export default function SearchResults({
       controller.abort();
       window.clearTimeout(handle);
     };
-  }, [debounceMs, showingSearch, trimmedQuery]);
+  }, [debounceMs, retryToken, showingSearch, trimmedQuery]);
+
+  const handleRetry = () => {
+    setSearchError(null);
+    setSearchLoading(true);
+    setRetryToken((value) => value + 1);
+  };
 
   if (!showingSearch) {
     return null;
@@ -74,6 +81,13 @@ export default function SearchResults({
             {isOutage ? getTemporaryApiOutageMessage() : searchError}
           </p>
           {isOutage ? <p className="mt-2 text-sm text-red-200/90">The upstream anime API is currently failing with an Internal Server Error.</p> : null}
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="mt-4 inline-flex items-center justify-center rounded-full border border-red-800/70 bg-red-900/40 px-4 py-2 text-sm font-medium text-red-50 transition hover:border-red-700 hover:bg-red-900/60"
+          >
+            Retry search
+          </button>
         </div>
       ) : null}
 
@@ -84,8 +98,10 @@ export default function SearchResults({
           ))}
         </div>
       ) : results.length === 0 ? (
-        <div className="mt-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 text-sm text-zinc-400 backdrop-blur">
-          {emptyMessage}
+        <div className="mt-3 rounded-3xl border border-zinc-800 bg-zinc-950/60 p-6 text-sm text-zinc-400 shadow-sm backdrop-blur">
+          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">No results</div>
+          <p className="mt-2 text-base font-medium text-zinc-200">{emptyMessage}</p>
+          <p className="mt-2 text-sm text-zinc-500">Try a different spelling, a shorter title, or another franchise name.</p>
         </div>
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">

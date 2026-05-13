@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AnimeCard from "../components/AnimeCard.tsx";
 import Header from "../components/Header.tsx";
+import { SkeletonCard } from "../components/SkeletonCard.tsx";
 import SearchResults from "../components/SearchResults.tsx";
 import {
   ANIME_LIST_STATUS_LABELS,
@@ -39,7 +40,49 @@ function compareScore(left: AnimeListEntry, right: AnimeListEntry) {
   return getAnimeSortTitle(left).localeCompare(getAnimeSortTitle(right));
 }
 
-function ListSection({ anime }: { anime: AnimeListEntry[] }) {
+function ListSection({
+  anime,
+  status,
+  isLoading,
+  error,
+  onRetry,
+}: {
+  anime: AnimeListEntry[];
+  status: AnimeListStatus;
+  isLoading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  if (isLoading && anime.length === 0) {
+    return (
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (error && anime.length === 0) {
+    return (
+      <div className="mt-4 rounded-3xl border border-amber-900/50 bg-amber-950/40 p-6 text-amber-50 shadow-sm">
+        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Sync issue</div>
+        <h3 className="mt-2 text-xl font-semibold text-amber-50">We could not refresh this list</h3>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-amber-100/85">
+          The last cached copy is not available yet, so this page cannot show your {ANIME_LIST_STATUS_LABELS[status].toLowerCase()} entries right now.
+        </p>
+        <p className="mt-2 text-sm text-amber-100/80">{error}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-4 inline-flex items-center justify-center rounded-full border border-amber-700/60 bg-amber-900/40 px-4 py-2 text-sm font-medium text-amber-50 transition hover:border-amber-600 hover:bg-amber-900/60"
+        >
+          Retry sync
+        </button>
+      </div>
+    );
+  }
+
   return (
     <section>
       {anime.length > 0 ? (
@@ -49,8 +92,19 @@ function ListSection({ anime }: { anime: AnimeListEntry[] }) {
           ))}
         </div>
       ) : (
-        <div className="mt-4 flex min-h-[40vh] items-center justify-center rounded-3xl border border-zinc-800/80 bg-zinc-900/20 p-6 text-sm text-zinc-500">
-          This list is empty.
+        <div className="mt-4 rounded-3xl border border-zinc-800/80 bg-zinc-950/60 p-6 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Nothing here yet</div>
+              <h3 className="mt-2 text-xl font-semibold text-zinc-100">Start building this shelf</h3>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
+                Search for a title in the header, then add it to {ANIME_LIST_STATUS_LABELS[status].toLowerCase()}.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-sm text-zinc-300">
+              Your list is cached locally so it can load again after a refresh or brief disconnect.
+            </div>
+          </div>
         </div>
       )}
     </section>
@@ -60,7 +114,7 @@ function ListSection({ anime }: { anime: AnimeListEntry[] }) {
 export default function AnimeListPage() {
   const navigate = useNavigate();
   const { status } = useParams<{ status: string }>();
-  const { getEntriesByStatus } = useAnimeList();
+  const { getEntriesByStatus, isLoading, syncError, isOfflineFallback, retrySync } = useAnimeList();
   const { user, userProfile } = useAuth();
   
   const [query, setQuery] = useState("");
@@ -93,6 +147,7 @@ export default function AnimeListPage() {
   // Profile data
   const userLabel = (user?.displayName?.trim() || user?.email?.trim() || "User").trim();
   const userInitial = userLabel.length > 0 ? userLabel[0]!.toUpperCase() : "U";
+  const shouldShowCachedWarning = Boolean(syncError) && items.length > 0;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 pb-16">
@@ -133,6 +188,27 @@ export default function AnimeListPage() {
                   <span className="text-2xl font-semibold text-zinc-100 sm:text-3xl">{items.length}</span>
                 </div>
               </div>
+            </section>
+          ) : null}
+
+          {shouldShowCachedWarning ? (
+            <section className="rounded-3xl border border-amber-900/50 bg-amber-950/40 p-5 text-sm text-amber-50 shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                {isOfflineFallback ? "Offline fallback" : "Sync issue"}
+              </div>
+              <p className="mt-2 text-base font-semibold text-amber-50">
+                {isOfflineFallback
+                  ? "You are viewing the last cached version of this list."
+                  : "The anime list could not be refreshed right now."}
+              </p>
+              <p className="mt-2 text-sm text-amber-100/85">{syncError}</p>
+              <button
+                type="button"
+                onClick={retrySync}
+                className="mt-4 inline-flex items-center justify-center rounded-full border border-amber-700/60 bg-amber-900/40 px-4 py-2 text-sm font-medium text-amber-50 transition hover:border-amber-600 hover:bg-amber-900/60"
+              >
+                Retry sync
+              </button>
             </section>
           ) : null}
 
@@ -193,7 +269,13 @@ export default function AnimeListPage() {
 
               {/* Anime Grid */}
               <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <ListSection anime={sortedItems} />
+                <ListSection
+                  anime={sortedItems}
+                  status={normalizedStatus}
+                  isLoading={isLoading}
+                  error={syncError}
+                  onRetry={retrySync}
+                />
               </section>
               
             </div>

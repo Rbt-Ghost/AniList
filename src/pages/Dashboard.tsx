@@ -26,9 +26,12 @@ export default function Dashboard() {
   const [topLoading, setTopLoading] = useState(true);
   const [topLoadingMore, setTopLoadingMore] = useState(false);
   const [topError, setTopError] = useState<string | null>(null);
+  const [topLoadMoreError, setTopLoadMoreError] = useState<string | null>(null);
+  const [topInitialRetryKey, setTopInitialRetryKey] = useState(0);
   const topLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const nextTopPageRef = useRef(2);
   const lastPaginationTimeRef = useRef(0);
+  const topLoadMoreErrorTimerRef = useRef<number | null>(null);
 
   const trimmedQuery = query.trim();
   const showingSearch = trimmedQuery.length > 0;
@@ -86,11 +89,11 @@ export default function Dashboard() {
     })();
 
     return () => controller.abort();
-  }, [heroInitialFetchDone]); // Dependency on the hero completion flag
+  }, [heroInitialFetchDone, topInitialRetryKey]); // Dependency on the hero completion flag and manual retries
 
   // 3. Handle Top Anime Pagination
   useEffect(() => {
-    if (showingSearch || topLoading || topLoadingMore || topError || !topHasNextPage || !hasUserScrolled) return;
+    if (showingSearch || topLoading || topLoadingMore || topLoadMoreError || topError || !topHasNextPage || !hasUserScrolled) return;
 
     const target = topLoadMoreRef.current;
     if (!target) return;
@@ -124,7 +127,16 @@ export default function Dashboard() {
             setTopHasNextPage(hasNextPage);
             nextTopPageRef.current = pageToLoad + 1;
           } catch (e) {
-            if (!isAbortError(e)) setTopError((e as Error).message);
+            if (!isAbortError(e)) {
+              setTopLoadMoreError((e as Error).message);
+              if (topLoadMoreErrorTimerRef.current !== null) {
+                window.clearTimeout(topLoadMoreErrorTimerRef.current);
+              }
+              topLoadMoreErrorTimerRef.current = window.setTimeout(() => {
+                setTopLoadMoreError(null);
+                topLoadMoreErrorTimerRef.current = null;
+              }, 3000);
+            }
           } finally {
             setTopLoadingMore(false);
           }
@@ -137,7 +149,31 @@ export default function Dashboard() {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [showingSearch, topLoading, topLoadingMore, topError, topHasNextPage, hasUserScrolled]);
+  }, [showingSearch, topLoadMoreError, topLoading, topLoadingMore, topError, topHasNextPage, hasUserScrolled]);
+
+  useEffect(() => {
+    return () => {
+      if (topLoadMoreErrorTimerRef.current !== null) {
+        window.clearTimeout(topLoadMoreErrorTimerRef.current);
+      }
+    };
+  }, []);
+
+  const retryTopInitialLoad = () => {
+    setTopError(null);
+    setTopAnime([]);
+    setTopHasNextPage(true);
+    nextTopPageRef.current = 2;
+    setTopInitialRetryKey((value) => value + 1);
+  };
+
+  const retryTopPagination = () => {
+    if (topLoadMoreErrorTimerRef.current !== null) {
+      window.clearTimeout(topLoadMoreErrorTimerRef.current);
+      topLoadMoreErrorTimerRef.current = null;
+    }
+    setTopLoadMoreError(null);
+  };
 
   const handleQueryChange = (next: string) => {
     setQuery(next);
@@ -208,6 +244,28 @@ export default function Dashboard() {
                     <div className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">Temporary outage</div>
                     <p className="mt-2 text-base font-semibold text-red-50">{getTemporaryApiOutageMessage()}</p>
                     <p className="mt-2 text-sm text-red-200/90">{topError}</p>
+                    <button
+                      type="button"
+                      onClick={retryTopInitialLoad}
+                      className="mt-4 inline-flex items-center justify-center rounded-full border border-red-800/70 bg-red-900/40 px-4 py-2 text-sm font-medium text-red-50 transition hover:border-red-700 hover:bg-red-900/60"
+                    >
+                      Retry load
+                    </button>
+                  </div>
+                ) : null}
+
+                {topLoadMoreError ? (
+                  <div className="mb-4 rounded-3xl border border-amber-900/50 bg-amber-950/40 p-5 text-sm text-amber-50 shadow-sm">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Load paused</div>
+                    <p className="mt-2 text-base font-semibold text-amber-50">The next batch could not be fetched.</p>
+                    <p className="mt-2 text-sm text-amber-100/85">{topLoadMoreError}</p>
+                    <button
+                      type="button"
+                      onClick={retryTopPagination}
+                      className="mt-4 inline-flex items-center justify-center rounded-full border border-amber-700/60 bg-amber-900/40 px-4 py-2 text-sm font-medium text-amber-50 transition hover:border-amber-600 hover:bg-amber-900/60"
+                    >
+                      Retry pagination
+                    </button>
                   </div>
                 ) : null}
 

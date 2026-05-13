@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import type { Anime } from "../api/Jikan.ts";
 import { db } from "../firebase/firebase.ts";
+import { getErrorMessage } from "../utils/errors.ts";
 import { useAuth } from "./AuthContext.tsx";
 
 const ANIME_LIST_STATUSES = ["plan-to-watch", "watching", "completed"] as const;
@@ -54,6 +55,10 @@ type AnimeListInput = {
 
 type AnimeListContextValue = {
   entries: AnimeListEntry[];
+  isLoading: boolean;
+  syncError: string | null;
+  isOfflineFallback: boolean;
+  retrySync: () => void;
   getEntry: (animeId: number) => AnimeListEntry | undefined;
   getEntriesByStatus: (status: AnimeListStatus) => AnimeListEntry[];
   saveAnime: (anime: Anime, input: AnimeListInput) => void;
@@ -61,6 +66,7 @@ type AnimeListContextValue = {
 };
 
 const STORAGE_KEY = "anilist:list-state:v1";
+const USER_STORAGE_KEY_PREFIX = "anilist:list-state:user:";
 const FIRESTORE_VERSION = 1;
 
 const AnimeListContext = createContext<AnimeListContextValue | null>(null);
@@ -143,6 +149,38 @@ function readGuestEntries(): AnimeListEntry[] {
   }
 }
 
+function getUserStorageKey(uid: string): string {
+  return `${USER_STORAGE_KEY_PREFIX}${uid}`;
+}
+
+function readCachedUserEntries(uid: string): AnimeListEntry[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(getUserStorageKey(uid));
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as unknown;
+    return readEntriesFromUnknown(parsed);
+  } catch {
+    return [];
+  }
+}
+
+function writeCachedUserEntries(uid: string, entries: AnimeListEntry[]): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(getUserStorageKey(uid), JSON.stringify(entries));
+  } catch {
+    // Ignore storage quota and privacy-mode failures.
+  }
+}
+
 function toStoredAnime(anime: Anime): Anime {
   const stored: Partial<Anime> = {
     mal_id: anime.mal_id,
@@ -196,6 +234,9 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
 
   const [guestEntries, setGuestEntries] = useState<AnimeListEntry[]>(() => readGuestEntries());
   const [userEntries, setUserEntries] = useState<AnimeListEntry[]>([]);
+  const [hasResolvedRemote, setHasResolvedRemote] = useState(!uid);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncRevision, setSyncRevision] = useState(0);
   const clearedGuestForUserRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -207,7 +248,12 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
   }, [guestEntries, uid]);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setUserEntries([]);
+      setHasResolvedRemote(true);
+      setSyncError(null);
+      return;
+    }
 
     // When a user logs in: clear guest storage and switch to per-user Firestore storage.
     if (typeof window !== "undefined") {
@@ -221,6 +267,13 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setUserEntries([]);
+    setHasResolvedRemote(false);
+    setSyncError(null);
+
+    const cachedEntries = readCachedUserEntries(uid);
+    if (cachedEntries.length > 0) {
+      setUserEntries(cachedEntries);
+    }
 
     const ref = doc(db, "users", uid, "animeList", "state");
     const unsubscribe = onSnapshot(
@@ -229,20 +282,40 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
         const data = snap.data() as { entries?: unknown } | undefined;
         const next = readEntriesFromUnknown(data?.entries);
         setUserEntries(next);
+        writeCachedUserEntries(uid, next);
+        setHasResolvedRemote(true);
+        setSyncError(null);
       },
       (error) => {
         console.error("Failed to load AniList entries from Firestore", error);
+        setSyncError(getErrorMessage(error));
+        setHasResolvedRemote(true);
+
+        if (cachedEntries.length === 0) {
+          setUserEntries(readCachedUserEntries(uid));
+        }
       }
     );
 
     return unsubscribe;
-  }, [uid]);
+  }, [syncRevision, uid]);
 
   const entries = uid ? userEntries : guestEntries;
+  const isLoading = Boolean(uid) && !hasResolvedRemote && entries.length === 0;
+  const isOfflineFallback = Boolean(uid) && hasResolvedRemote && syncError !== null && entries.length > 0;
 
   const value = useMemo<AnimeListContextValue>(() => {
     return {
       entries,
+      isLoading,
+      syncError,
+      isOfflineFallback,
+      retrySync: () => {
+        if (!uid) return;
+        setHasResolvedRemote(false);
+        setSyncError(null);
+        setSyncRevision((value) => value + 1);
+      },
       getEntry: (animeId) => entries.find((entry) => entry.anime.mal_id === animeId),
       getEntriesByStatus: (status) =>
         entries
@@ -273,6 +346,7 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
         if (uid) {
           setUserEntries((current) => {
             const next = update(current);
+            writeCachedUserEntries(uid, next);
             void persistUserEntries(uid, next);
             return next;
           });
@@ -285,6 +359,7 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
         if (uid) {
           setUserEntries((current) => {
             const next = current.filter((entry) => entry.anime.mal_id !== animeId);
+            writeCachedUserEntries(uid, next);
             void persistUserEntries(uid, next);
             return next;
           });
@@ -294,7 +369,7 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
         setGuestEntries((current) => current.filter((entry) => entry.anime.mal_id !== animeId));
       },
     };
-  }, [entries, uid]);
+  }, [entries, isLoading, isOfflineFallback, syncError, uid]);
 
   return <AnimeListContext.Provider value={value}>{children}</AnimeListContext.Provider>;
 }
