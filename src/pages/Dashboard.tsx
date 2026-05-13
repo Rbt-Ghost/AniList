@@ -9,6 +9,7 @@ import { getTemporaryApiOutageMessage, isAbortError } from "../utils/errors.ts";
 
 const TOP_PAGE_SIZE = 20;
 const PAGINATION_DEBOUNCE_MS = 800; // Prevent rapid pagination requests
+const TOP_PAGINATION_TRIGGER_PX = 240;
 
 export default function Dashboard() {
   const [query, setQuery] = useState("");
@@ -98,15 +99,21 @@ export default function Dashboard() {
     const target = topLoadMoreRef.current;
     if (!target) return;
 
+    const isNearBottom = () => {
+      const scrollPosition = window.scrollY + window.innerHeight;
+      const pageHeight = document.documentElement.scrollHeight;
+      return pageHeight - scrollPosition <= TOP_PAGINATION_TRIGGER_PX;
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         const first = entries[0];
-        if (!first?.isIntersecting) return;
-
-        observer.unobserve(first.target);
+        if (!first?.isIntersecting || !isNearBottom()) return;
 
         const pageToLoad = nextTopPageRef.current;
         if (pageToLoad < 2) return;
+
+        observer.unobserve(first.target);
 
         // Debounce pagination requests to prevent queue overflow
         const now = Date.now();
@@ -144,7 +151,10 @@ export default function Dashboard() {
 
         return () => controller.abort();
       },
-      { rootMargin: "260px 0px" }
+      {
+        rootMargin: "0px",
+        threshold: 0,
+      }
     );
 
     observer.observe(target);
