@@ -188,6 +188,7 @@ export default function StreamPage() {
 
   const hasVideoSource = selectedSourceKind === "mp4" || selectedSourceKind === "hls";
   const hasIframeSource = selectedSourceKind === "iframe";
+  const isEpisodeSwitchLoading = streamLoading;
 
   // Determine layout state
   const isIdle = !selectedAnime && results.length === 0 && !searchLoading;
@@ -343,7 +344,9 @@ export default function StreamPage() {
                     <iframe
                       title={selectedSource?.label ?? "Stream source"}
                       src={selectedSource?.url ?? "about:blank"}
-                      className="absolute inset-0 h-full w-full border-0"
+                      className={`absolute inset-0 h-full w-full border-0 transition-all duration-300 ${
+                        isEpisodeSwitchLoading ? "pointer-events-none opacity-35 blur-[1px]" : ""
+                      }`}
                       allow="autoplay; encrypted-media; picture-in-picture"
                       allowFullScreen
                     />
@@ -353,7 +356,9 @@ export default function StreamPage() {
                       controls
                       playsInline
                       autoPlay
-                      className="absolute inset-0 h-full w-full"
+                      className={`absolute inset-0 h-full w-full transition-all duration-300 ${
+                        isEpisodeSwitchLoading ? "pointer-events-none opacity-35 blur-[1px]" : ""
+                      }`}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center text-center p-4">
@@ -367,6 +372,19 @@ export default function StreamPage() {
                       )}
                     </div>
                   )}
+
+                  {isEpisodeSwitchLoading ? (
+                    <div
+                      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-zinc-950/70 px-6 text-center backdrop-blur-sm"
+                      aria-live="polite"
+                      aria-busy="true"
+                    >
+                      <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-100" />
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-100">Loading EP {selectedEpisode}...</p>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Player Controls & Sources */}
@@ -391,6 +409,10 @@ export default function StreamPage() {
                       Next <span>&rarr;</span>
                     </button>
                   </div>
+
+                  <span className="px-1 sm:px-2 text-[10px] sm:text-xs font-bold text-zinc-500 uppercase whitespace-nowrap">
+                    {isEpisodeSwitchLoading ? `Loading EP ${selectedEpisode}` : `EP ${selectedEpisode}`}
+                  </span>
 
                   {/* Server Sources */}
                   {(details?.sources ?? []).length > 0 && (
@@ -437,6 +459,7 @@ export default function StreamPage() {
                 <div className="grid max-h-80 sm:max-h-100 grid-cols-4 gap-2 sm:gap-3 overflow-y-auto pr-1 sm:pr-2 [scrollbar-width:thin] scrollbar-thumb-zinc-700 scrollbar-track-transparent sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-300">
                   {episodes.map((episode) => {
                     const active = episode.number === selectedEpisode;
+                    const pending = active && isEpisodeSwitchLoading;
                     return (
                       <button
                         key={episode.number}
@@ -448,7 +471,10 @@ export default function StreamPage() {
                             : "bg-zinc-950/40 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 border border-zinc-800/50"
                         }`}
                       >
-                        {formatEpisodeLabel(episode.number)}
+                        <span className="flex items-center gap-1">
+                          {formatEpisodeLabel(episode.number)}
+                          {pending ? <span className="h-1.5 w-1.5 rounded-full bg-zinc-950/80 animate-pulse" aria-hidden="true" /> : null}
+                        </span>
                       </button>
                     );
                   })}
