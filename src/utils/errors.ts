@@ -27,6 +27,23 @@ export function isTemporaryApiOutage(error: unknown): boolean {
 }
 
 /**
+ * Detect Firestore requests that were blocked or otherwise prevented from connecting.
+ */
+export function isFirestoreBlockedError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+
+  return (
+    message.includes("err_blocked_by_client") ||
+    message.includes("blocked by client") ||
+    message.includes("blocked by your browser") ||
+    message.includes("webchannelconnection rpc") ||
+    message.includes("listen/channel") ||
+    message.includes("transport errored") ||
+    message.includes("firestore.googleapis.com")
+  );
+}
+
+/**
  * Standard copy for temporary service outages.
  */
 export function getTemporaryApiOutageMessage(): string {

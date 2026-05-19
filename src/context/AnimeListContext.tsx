@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import type { Anime } from "../api/Jikan.ts";
 import { db } from "../firebase/firebase.ts";
-import { getErrorMessage } from "../utils/errors.ts";
+import { getErrorMessage, isFirestoreBlockedError } from "../utils/errors.ts";
 import { useAuth } from "./AuthContext.tsx";
 
 const ANIME_LIST_STATUSES = ["plan-to-watch", "watching", "completed"] as const;
@@ -287,8 +287,13 @@ export function AnimeListProvider({ children }: { children: ReactNode }) {
         setSyncError(null);
       },
       (error) => {
-        console.error("Failed to load AniList entries from Firestore", error);
-        setSyncError(getErrorMessage(error));
+        if (isFirestoreBlockedError(error)) {
+          setSyncError("Firestore is blocked by your browser or an extension. Using your cached list.");
+        } else {
+          console.error("Failed to load AniList entries from Firestore", error);
+          setSyncError(getErrorMessage(error));
+        }
+
         setHasResolvedRemote(true);
 
         if (cachedEntries.length === 0) {

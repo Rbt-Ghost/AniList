@@ -165,8 +165,12 @@ export default function StreamPage() {
         const data = await getStreamSources(selectedAnime.id, selectedEpisode, mode, controller.signal);
         if (controller.signal.aborted) return;
 
+        const allowed = data.sources.filter(isAllowedSource);
+        const mp4Index = allowed.findIndex((s) => s.kind === "mp4" || getSourceLabel(s) === "mp4");
+        const defaultIndex = mp4Index >= 0 ? mp4Index : 0;
+
         setDetails(data);
-        setSelectedSourceIndex(0);
+        setSelectedSourceIndex(defaultIndex);
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(err instanceof Error ? err.message : "Failed to load stream sources.");

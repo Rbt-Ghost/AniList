@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 
 import { useAuth } from "../context/AuthContext.tsx";
 import { getFriendlyAuthError } from "../utils/firebaseAuthErrors.ts";
+import { isFirestoreBlockedError } from "../utils/errors.ts";
 import { lockScroll, unlockScroll } from "../utils/scrollLock";
 import { db } from "../firebase/firebase.ts";
 import { friendshipDocId, makeFriendSnapshot, type FriendshipRecord, type UserDirectoryEntry, usernameDocId } from "../utils/social.ts";
@@ -146,8 +147,11 @@ export default function AccountPopup({ open, user, onClose }: Props) {
         setFriendsLoading(false);
       },
       (snapshotError) => {
-        console.error("Failed to load friendships", snapshotError);
-        toast.error("Failed to load your friends list.");
+        if (!isFirestoreBlockedError(snapshotError)) {
+          console.error("Failed to load friendships", snapshotError);
+          toast.error("Failed to load your friends list.");
+        }
+
         setFriendsLoading(false);
       }
     );

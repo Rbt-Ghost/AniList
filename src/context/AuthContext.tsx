@@ -25,6 +25,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebase.ts";
+import { isFirestoreBlockedError } from "../utils/errors.ts";
 import { makeFriendSnapshot, normalizeUsername, usernameDocId } from "../utils/social.ts";
 
 type SignUpInput = {
@@ -122,37 +123,45 @@ async function syncUsernameDirectoryEntry(
 
   const previousDocId = previousDisplayName ? usernameDocId(previousDisplayName) : null;
 
-  await runTransaction(db, async (transaction) => {
-    const nextRef = doc(db, "usernames", nextDocId);
-    const nextSnap = await transaction.get(nextRef);
+  try {
+    await runTransaction(db, async (transaction) => {
+      const nextRef = doc(db, "usernames", nextDocId);
+      const nextSnap = await transaction.get(nextRef);
 
-    if (nextSnap.exists() && nextSnap.data().uid !== uid) {
-      throw new Error("That username is already taken.");
-    }
-
-    if (previousDocId && previousDocId !== nextDocId) {
-      const previousRef = doc(db, "usernames", previousDocId);
-      const previousSnap = await transaction.get(previousRef);
-
-      if (previousSnap.exists() && previousSnap.data().uid === uid) {
-        transaction.delete(previousRef);
+      if (nextSnap.exists() && nextSnap.data().uid !== uid) {
+        throw new Error("That username is already taken.");
       }
+
+      if (previousDocId && previousDocId !== nextDocId) {
+        const previousRef = doc(db, "usernames", previousDocId);
+        const previousSnap = await transaction.get(previousRef);
+
+        if (previousSnap.exists() && previousSnap.data().uid === uid) {
+          transaction.delete(previousRef);
+        }
+      }
+
+      transaction.set(
+        nextRef,
+        {
+          uid,
+          displayName: nextDisplayName,
+          avatarDataUrl,
+          emailVerified,
+          bio,
+          normalizedName: normalizeUsername(nextDisplayName),
+          updatedAt: Date.now(),
+        },
+        { merge: true }
+      );
+    });
+  } catch (error) {
+    if (isFirestoreBlockedError(error)) {
+      return;
     }
 
-    transaction.set(
-      nextRef,
-      {
-        uid,
-        displayName: nextDisplayName,
-        avatarDataUrl,
-        emailVerified,
-        bio,
-        normalizedName: normalizeUsername(nextDisplayName),
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
-  });
+    throw error;
+  }
 }
 
 async function refreshFriendshipSnapshots(
@@ -185,7 +194,9 @@ async function refreshFriendshipSnapshots(
       })
     );
   } catch (error) {
-    console.warn("Failed to refresh friendship snapshots", error);
+    if (!isFirestoreBlockedError(error)) {
+      console.warn("Failed to refresh friendship snapshots", error);
+    }
   }
 }
 
@@ -230,9 +241,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const nextProfile = normalizeProfile(snap.data());
         setUserProfile(nextProfile);
         writeCachedProfile(uid, nextProfile);
-      } catch {
-        if (active) {
-          setUserProfile(EMPTY_PROFILE);
+      } catch (error) {
+        if (!active) return;
+
+        const cachedProfile = readCachedProfile(uid);
+        if (cachedProfile) {
+          setUserProfile(cachedProfile);
+          return;
+        }
+
+        setUserProfile(EMPTY_PROFILE);
+
+        if (!isFirestoreBlockedError(error)) {
+          console.warn("Failed to load user profile from Firestore", error);
         }
       } finally {
         if (active) {
@@ -397,15 +418,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             nextProfile.avatarDataUrl = input.avatarDataUrl;
           }
 
-          await setDoc(
-            profileRef,
-            {
-              ...nextProfile,
-              updatedAt: Date.now(),
-            },
-            { merge: true }
-          );
-
           setUserProfile((currentProfile) => ({
             ...currentProfile,
             ...nextProfile,
@@ -415,6 +427,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ...userProfile,
             ...nextProfile,
           });
+
+          try {
+            await setDoc(
+              profileRef,
+              {
+                ...nextProfile,
+                updatedAt: Date.now(),
+              },
+              { merge: true }
+            );
+          } catch (error) {
+            if (!isFirestoreBlockedError(error)) {
+              throw error;
+            }
+          }
         }
 
         const resolvedDisplayName = nextDisplayName ?? previousDisplayName;
