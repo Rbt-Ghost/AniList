@@ -52,6 +52,23 @@ export default function StreamPage() {
     if (hasNext) setSelectedEpisode(episodes[currentEpIndex + 1].number);
   };
 
+  const handleClearSelection = () => {
+    if (selectedEpisode) {
+      setSelectedEpisode("");
+      setDetails(null);
+      setSelectedSourceIndex(0);
+      setStreamLoading(false);
+      setError(null);
+      return;
+    }
+
+    setSelectedAnime(null);
+    setSelectedEpisode("");
+    setDetails(null);
+    setSelectedSourceIndex(0);
+    setError(null);
+  };
+
   useEffect(() => {
     if (!selectedAnime) {
       setEpisodes([]);
@@ -329,10 +346,10 @@ export default function StreamPage() {
                 </p>
               </div>
               <button
-                onClick={() => setSelectedAnime(null)}
+                onClick={handleClearSelection}
                 className="self-start sm:self-auto inline-flex rounded-full border border-zinc-800 bg-zinc-900/30 px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
               >
-                Clear Selection
+                {selectedEpisode ? "Back to Episodes" : "Back to Titles"}
               </button>
             </div>
 
@@ -410,13 +427,9 @@ export default function StreamPage() {
                     </button>
                   </div>
 
-                  <span className="px-1 sm:px-2 text-[10px] sm:text-xs font-bold text-zinc-500 uppercase whitespace-nowrap">
-                    {isEpisodeSwitchLoading ? `Loading EP ${selectedEpisode}` : `EP ${selectedEpisode}`}
-                  </span>
-
                   {/* Server Sources */}
                   {(details?.sources ?? []).length > 0 && (
-                    <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pt-2 sm:pt-0 border-t border-zinc-800/50 sm:border-0">
+                    <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pt-1.5 sm:pt-0 border-t border-zinc-800/50 sm:border-0">
                       <span className="shrink-0 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-zinc-600 pl-1 sm:pl-0">
                         Servers
                       </span>
@@ -427,7 +440,7 @@ export default function StreamPage() {
                             key={`${source.label}-${index}`}
                             type="button"
                             onClick={() => setSelectedSourceIndex(index)}
-                            className={`whitespace-nowrap rounded-lg border px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold transition-colors ${
+                            className={`whitespace-nowrap rounded-md border px-1.5 sm:px-2 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-semibold transition-colors ${
                               active
                                 ? "border-zinc-600 bg-zinc-800 text-zinc-50"
                                 : "border-transparent bg-zinc-900/50 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
@@ -444,47 +457,49 @@ export default function StreamPage() {
             )}
 
             {/* Episode Selection Grid */}
-            <div className="rounded-2xl sm:rounded-3xl border border-zinc-800/60 bg-zinc-900/20 p-4 sm:p-6 backdrop-blur-md">
-              <h3 className="mb-4 sm:mb-5 text-xs sm:text-sm font-semibold uppercase tracking-widest text-zinc-400">
-                Episodes
-              </h3>
+            {!selectedEpisode ? (
+              <div className="rounded-2xl sm:rounded-3xl border border-zinc-800/60 bg-zinc-900/20 p-4 sm:p-6 backdrop-blur-md">
+                <h3 className="mb-4 sm:mb-5 text-xs sm:text-sm font-semibold uppercase tracking-widest text-zinc-400">
+                  Episodes
+                </h3>
 
-              {episodesLoading ? (
-                <div className="grid grid-cols-4 gap-2 sm:gap-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10">
-                  {Array.from({ length: 20 }).map((_, i) => (
-                    <div key={i} className="h-8 sm:h-10 animate-pulse rounded-xl bg-zinc-800/40" />
-                  ))}
-                </div>
-              ) : episodes.length > 0 ? (
-                <div className="grid max-h-80 sm:max-h-100 grid-cols-4 gap-2 sm:gap-3 overflow-y-auto pr-1 sm:pr-2 [scrollbar-width:thin] scrollbar-thumb-zinc-700 scrollbar-track-transparent sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-300">
-                  {episodes.map((episode) => {
-                    const active = episode.number === selectedEpisode;
-                    const pending = active && isEpisodeSwitchLoading;
-                    return (
-                      <button
-                        key={episode.number}
-                        type="button"
-                        onClick={() => setSelectedEpisode(episode.number)}
-                        className={`relative flex items-center justify-center rounded-xl p-1.5 sm:p-2 text-xs sm:text-sm font-medium transition-all motion-safe:duration-300 motion-safe:ease-out ${
-                          active
-                            ? "bg-zinc-100 text-zinc-950 shadow-md shadow-white/10"
-                            : "bg-zinc-950/40 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 border border-zinc-800/50"
-                        }`}
-                      >
-                        <span className="flex items-center gap-1">
-                          {formatEpisodeLabel(episode.number)}
-                          {pending ? <span className="h-1.5 w-1.5 rounded-full bg-zinc-950/80 animate-pulse" aria-hidden="true" /> : null}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center rounded-xl sm:rounded-2xl border border-dashed border-zinc-800/60 bg-zinc-900/20 py-8 sm:py-10 text-center">
-                  <p className="text-xs sm:text-sm text-zinc-500">No episodes found for this title.</p>
-                </div>
-              )}
-            </div>
+                {episodesLoading ? (
+                  <div className="grid grid-cols-4 gap-2 sm:gap-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10">
+                    {Array.from({ length: 20 }).map((_, i) => (
+                      <div key={i} className="h-8 sm:h-10 animate-pulse rounded-xl bg-zinc-800/40" />
+                    ))}
+                  </div>
+                ) : episodes.length > 0 ? (
+                  <div className="grid max-h-80 sm:max-h-100 grid-cols-4 gap-2 sm:gap-3 overflow-y-auto pr-1 sm:pr-2 [scrollbar-width:thin] scrollbar-thumb-zinc-700 scrollbar-track-transparent sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-300">
+                    {episodes.map((episode) => {
+                      const active = episode.number === selectedEpisode;
+                      const pending = active && isEpisodeSwitchLoading;
+                      return (
+                        <button
+                          key={episode.number}
+                          type="button"
+                          onClick={() => setSelectedEpisode(episode.number)}
+                          className={`relative flex items-center justify-center rounded-xl p-1.5 sm:p-2 text-xs sm:text-sm font-medium transition-all motion-safe:duration-300 motion-safe:ease-out ${
+                            active
+                              ? "bg-zinc-100 text-zinc-950 shadow-md shadow-white/10"
+                              : "bg-zinc-950/40 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 border border-zinc-800/50"
+                          }`}
+                        >
+                          <span className="flex items-center gap-1">
+                            {formatEpisodeLabel(episode.number)}
+                            {pending ? <span className="h-1.5 w-1.5 rounded-full bg-zinc-950/80 animate-pulse" aria-hidden="true" /> : null}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-xl sm:rounded-2xl border border-dashed border-zinc-800/60 bg-zinc-900/20 py-8 sm:py-10 text-center">
+                    <p className="text-xs sm:text-sm text-zinc-500">No episodes found for this title.</p>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </section>
         )}
       </main>
