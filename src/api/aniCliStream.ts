@@ -33,8 +33,16 @@ export type StreamDetails = {
   subtitles: StreamSubtitle[];
 };
 
-const DEFAULT_BASE = "/stream-api";
-const BASE = import.meta.env.VITE_STREAM_API_BASE_URL ?? DEFAULT_BASE;
+const DEV_BASE = "/stream-api";
+const PROD_BASE = "https://api.anicli.robertnistor.dev";
+const envBase = import.meta.env.VITE_STREAM_API_BASE_URL?.trim();
+const BASE = envBase
+  ? envBase.startsWith("/") && !import.meta.env.DEV
+    ? PROD_BASE
+    : envBase
+  : import.meta.env.DEV
+    ? DEV_BASE
+    : PROD_BASE;
 
 async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${BASE}${path}`, { signal });
