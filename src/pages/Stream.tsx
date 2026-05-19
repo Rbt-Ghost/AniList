@@ -21,6 +21,15 @@ function getSourceKind(source: StreamSource | null) {
   return source.kind;
 }
 
+function getSourceLabel(source: StreamSource) {
+  return source.label.trim().toLowerCase();
+}
+
+function isAllowedSource(source: StreamSource) {
+  const label = getSourceLabel(source);
+  return label === "mp4" || label === "uni" || label === "ok" || label === "fm-hls";
+}
+
 export default function StreamPage() {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<StreamMode>("sub");
@@ -36,7 +45,8 @@ export default function StreamPage() {
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const selectedSource = details?.sources[selectedSourceIndex] ?? details?.sources[0] ?? null;
+  const allowedSources = details?.sources.filter(isAllowedSource) ?? [];
+  const selectedSource = allowedSources[selectedSourceIndex] ?? allowedSources[0] ?? null;
   const selectedSourceKind = getSourceKind(selectedSource);
 
   // Next/Prev logic
@@ -428,12 +438,12 @@ export default function StreamPage() {
                   </div>
 
                   {/* Server Sources */}
-                  {(details?.sources ?? []).length > 0 && (
+                  {allowedSources.length > 0 && (
                     <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pt-1.5 sm:pt-0 border-t border-zinc-800/50 sm:border-0">
                       <span className="shrink-0 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-zinc-600 pl-1 sm:pl-0">
                         Servers
                       </span>
-                      {details!.sources.map((source, index) => {
+                      {allowedSources.map((source, index) => {
                         const active = index === selectedSourceIndex;
                         return (
                           <button
