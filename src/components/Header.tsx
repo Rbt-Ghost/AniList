@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ANIME_LIST_STATUS_LABELS, useAnimeList } from "../context/AnimeListContext.tsx";
 import { useAuth } from "../context/AuthContext.tsx";
 import AuthDialog from "./AuthDialog.tsx";
 import AccountPopup from "./AccountPopup.tsx";
@@ -18,7 +17,6 @@ export default function Header({
 }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getEntriesByStatus } = useAnimeList();
   const { user, userProfile } = useAuth();
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -131,14 +129,6 @@ export default function Header({
           </div>
 
           <div className="flex w-full items-center gap-3 sm:flex-1 sm:min-w-0 sm:justify-end">
-            <button
-              type="button"
-              onClick={() => navigate("/stream")}
-              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-700 hover:bg-zinc-900"
-            >
-              Stream
-            </button>
-
             <div className="min-w-0 flex-1 sm:max-w-96">
               <label className="sr-only" htmlFor="anime-search">
                 Search anime
@@ -199,28 +189,32 @@ export default function Header({
               {aniListDropdownOpen ? (
                 <div className="absolute right-0 top-full z-20 mt-2 w-full min-w-72 sm:w-80">
                   <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
-                    {(["plan-to-watch", "watching", "completed"] as const).map((status) => {
-                      const items = getEntriesByStatus(status);
-                      return (
-                        <button
-                          key={status}
-                          type="button"
-                          onClick={() => {
-                            setAniListDropdownOpen(false);
-                            navigate(`/lists/${status}`);
-                          }}
-                          className="flex w-full items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 text-left transition last:border-b-0 hover:bg-zinc-900"
-                        >
-                          <div>
-                            <div className="text-sm font-semibold text-zinc-50">{ANIME_LIST_STATUS_LABELS[status]}</div>
-                            <div className="text-xs text-zinc-500">Open the list to track your {ANIME_LIST_STATUS_LABELS[status].toLowerCase()} anime</div>
-                          </div>
-                          <span className="shrink-0 rounded-full border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs font-medium text-zinc-300">
-                            {items.length}
-                          </span>
-                        </button>
-                      );
-                    })}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAniListDropdownOpen(false);
+                        navigate("/lists/plan-to-watch");
+                      }}
+                      className="flex w-full items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 text-left transition hover:bg-zinc-900"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-zinc-50">Lists</div>
+                        <div className="text-xs text-zinc-500">Open your anime lists</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAniListDropdownOpen(false);
+                        navigate("/stream");
+                      }}
+                      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-zinc-900"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-zinc-50">AniStream</div>
+                        <div className="text-xs text-zinc-500">Go to the streaming page</div>
+                      </div>
+                    </button>
                   </div>
                 </div>
               ) : null}

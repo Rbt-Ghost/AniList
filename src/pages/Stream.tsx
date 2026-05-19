@@ -216,7 +216,7 @@ export default function StreamPage() {
               isIdle ? "mb-6 sm:mb-8 text-3xl sm:text-4xl md:text-5xl" : "mb-4 text-xl sm:text-2xl"
             }`}
           >
-            Stream Vault
+            AniStream
           </h1>
 
           {/* RESPONSIVE SEARCH BAR */}
