@@ -13,7 +13,7 @@ export default defineConfig({
         rewrite: (p) => p.replace(/^\/jikan/, ""),
       },
       "/stream-api": {
-        target: "https://api.anicli.robertnistor.dev",
+        target: "https://ani-list-backend.vercel.app",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/stream-api/, ""),
       },

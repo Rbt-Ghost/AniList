@@ -34,7 +34,7 @@ export type StreamDetails = {
 };
 
 const DEV_BASE = "/stream-api";
-const PROD_BASE = "https://api.anicli.robertnistor.dev";
+const PROD_BASE = "https://ani-list-backend.vercel.app";
 const envBase = import.meta.env.VITE_STREAM_API_BASE_URL?.trim();
 const BASE = envBase
   ? envBase.startsWith("/") && !import.meta.env.DEV
