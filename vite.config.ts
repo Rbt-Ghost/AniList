@@ -12,6 +12,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/jikan/, ""),
       },
+      "/stream-api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/stream-api/, ""),
+      },
     },
   },
 });

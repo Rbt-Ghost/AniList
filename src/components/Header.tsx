@@ -131,6 +131,14 @@ export default function Header({
           </div>
 
           <div className="flex w-full items-center gap-3 sm:flex-1 sm:min-w-0 sm:justify-end">
+            <button
+              type="button"
+              onClick={() => navigate("/stream")}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-700 hover:bg-zinc-900"
+            >
+              Stream
+            </button>
+
             <div className="min-w-0 flex-1 sm:max-w-96">
               <label className="sr-only" htmlFor="anime-search">
                 Search anime

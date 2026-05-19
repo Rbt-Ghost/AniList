@@ -7,6 +7,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const AnimeListPage = lazy(() => import("./pages/AnimeList.tsx"));
 const PublicUserListPage = lazy(() => import("./pages/PublicUserList.tsx"));
 const PeakFiction = lazy(() => import("./pages/PeakFiction.tsx"));
+const StreamPage = lazy(() => import("./pages/Stream.tsx"));
 const AnimeDetail = lazy(() => import("./pages/AnimeDetail.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/u/:username" element={<PublicUserListPage />} />
         <Route path="/u/:username/:status" element={<PublicUserListPage />} />
         <Route path="/anime/:id" element={<AnimeDetail />} />
+        <Route path="/stream" element={<StreamPage />} />
         <Route path="/peak-fiction" element={<PeakFiction />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
