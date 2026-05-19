@@ -13,7 +13,7 @@ export default defineConfig({
         rewrite: (p) => p.replace(/^\/jikan/, ""),
       },
       "/stream-api": {
-        target: "http://localhost:3001",
+        target: "https://api.anicli.robertnistor.dev",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/stream-api/, ""),
       },
