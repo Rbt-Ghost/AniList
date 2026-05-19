@@ -1,6 +1,11 @@
 // src/api/Jikan.ts
 const DEFAULT_BASE = "https://api.jikan.moe/v4";
-const BASE = import.meta.env.VITE_JIKAN_BASE_URL ?? DEFAULT_BASE;
+const envBase = import.meta.env.VITE_JIKAN_BASE_URL?.trim();
+const BASE = envBase
+  ? envBase.startsWith("/") && !import.meta.env.DEV
+    ? DEFAULT_BASE
+    : envBase
+  : DEFAULT_BASE;
 
 // Simple cache for anime by ID (prevents refetching during navigation)
 const animeCache = new Map<number, Anime>();
