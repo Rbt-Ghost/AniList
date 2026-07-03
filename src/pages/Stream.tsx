@@ -26,7 +26,8 @@ function getSourceLabel(source: StreamSource) {
 }
 
 function isAllowedSource(source: StreamSource) {
-  return source.kind === "mp4" || source.kind === "hls";
+  const label = getSourceLabel(source);
+  return label === "mp4" || label === "uni" || label === "ok" || label === "fm-hls";
 }
 
 export default function StreamPage() {
@@ -217,6 +218,7 @@ export default function StreamPage() {
   };
 
   const hasVideoSource = selectedSourceKind === "mp4" || selectedSourceKind === "hls";
+  const hasIframeSource = selectedSourceKind === "iframe";
   const isEpisodeSwitchLoading = streamLoading;
 
   // Determine layout state
@@ -369,7 +371,17 @@ export default function StreamPage() {
             {selectedEpisode && (
               <div className="mb-8 sm:mb-10 overflow-hidden rounded-2xl sm:rounded-3xl border border-zinc-800/80 bg-zinc-950 shadow-2xl">
                 <div className="relative flex aspect-video w-full items-center justify-center bg-black">
-                  {hasVideoSource ? (
+                  {hasIframeSource ? (
+                    <iframe
+                      title={selectedSource?.label ?? "Stream source"}
+                      src={selectedSource?.url ?? "about:blank"}
+                      className={`absolute inset-0 h-full w-full border-0 transition-all duration-300 ${
+                        isEpisodeSwitchLoading ? "pointer-events-none opacity-35 blur-[1px]" : ""
+                      }`}
+                      allow="autoplay; encrypted-media; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : hasVideoSource ? (
                     <video
                       ref={videoRef}
                       controls
