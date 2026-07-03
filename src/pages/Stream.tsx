@@ -7,7 +7,6 @@ import {
   searchAnime,
   type StreamDetails,
   type StreamEpisode,
-  type StreamMode,
   type StreamSearchResult,
   type StreamSource,
 } from "../api/aniCliStream.ts";
@@ -32,8 +31,10 @@ function isAllowedSource(source: StreamSource) {
 
 export default function StreamPage() {
   const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<StreamMode>("sub");
   const [results, setResults] = useState<StreamSearchResult[]>([]);
+  const [suggestions, setSuggestions] = useState<StreamSearchResult[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedAnime, setSelectedAnime] = useState<StreamSearchResult | null>(null);
   const [episodes, setEpisodes] = useState<StreamEpisode[]>([]);
   const [selectedEpisode, setSelectedEpisode] = useState<string>("");
@@ -44,6 +45,7 @@ export default function StreamPage() {
   const [streamLoading, setStreamLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const suggestionCacheRef = useRef(new Map<string, StreamSearchResult[]>());
 
   const allowedSources = details?.sources.filter(isAllowedSource) ?? [];
   const selectedSource = allowedSources[selectedSourceIndex] ?? allowedSources[0] ?? null;
@@ -76,6 +78,8 @@ export default function StreamPage() {
     setSelectedEpisode("");
     setDetails(null);
     setSelectedSourceIndex(0);
+    setSuggestions([]);
+    setShowSuggestions(false);
     setError(null);
   };
 
@@ -95,7 +99,7 @@ export default function StreamPage() {
 
     (async () => {
       try {
-        const data = await getEpisodes(selectedAnime.id, mode, controller.signal);
+        const data = await getEpisodes(selectedAnime.id, "sub", controller.signal);
         if (controller.signal.aborted) return;
 
         setEpisodes(data);
@@ -113,7 +117,7 @@ export default function StreamPage() {
     })();
 
     return () => controller.abort();
-  }, [mode, selectedAnime]);
+  }, [selectedAnime]);
 
   useEffect(() => {
     const media = videoRef.current;
@@ -162,7 +166,7 @@ export default function StreamPage() {
 
     (async () => {
       try {
-        const data = await getStreamSources(selectedAnime.id, selectedEpisode, mode, controller.signal);
+        const data = await getStreamSources(selectedAnime.id, selectedEpisode, "sub", controller.signal);
         if (controller.signal.aborted) return;
 
         const allowed = data.sources.filter(isAllowedSource);
@@ -183,10 +187,60 @@ export default function StreamPage() {
     })();
 
     return () => controller.abort();
-  }, [mode, selectedAnime, selectedEpisode]);
+  }, [selectedAnime, selectedEpisode]);
 
-  const submitSearch = async () => {
+  useEffect(() => {
     const trimmed = query.trim();
+    if (!trimmed) {
+      setSuggestions([]);
+      setSuggestionsLoading(false);
+      return;
+    }
+
+    const normalizedQuery = trimmed.toLowerCase();
+    const cachedExact = suggestionCacheRef.current.get(normalizedQuery) ?? [];
+    const cachedPrefix = Array.from(suggestionCacheRef.current.entries())
+      .filter(([cachedQuery]) => normalizedQuery.startsWith(cachedQuery))
+      .sort((left, right) => right[0].length - left[0].length)
+      .flatMap(([, items]) => items)
+      .filter((item, index, allItems) => allItems.findIndex((candidate) => candidate.id === item.id) === index)
+      .filter((item) => item.title.toLowerCase().includes(normalizedQuery));
+
+    const instantSuggestions = cachedExact.length > 0 ? cachedExact : cachedPrefix;
+    if (instantSuggestions.length > 0) {
+      setSuggestions(instantSuggestions.slice(0, 6));
+    }
+
+    const controller = new AbortController();
+    setSuggestionsLoading(true);
+
+    void searchAnime(trimmed, "sub", controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          suggestionCacheRef.current.set(normalizedQuery, data);
+          setSuggestions(data.slice(0, 6));
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          if (instantSuggestions.length === 0) {
+            setSuggestions([]);
+          }
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setSuggestionsLoading(false);
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [query]);
+
+  const submitSearch = async (nextQuery = query) => {
+    const trimmed = nextQuery.trim();
     if (!trimmed) {
       setResults([]);
       setError(null);
@@ -196,9 +250,10 @@ export default function StreamPage() {
     setSearchLoading(true);
     setError(null);
     setSelectedAnime(null); // Reset selection on new search
+    setShowSuggestions(false);
 
     try {
-      const data = await searchAnime(trimmed, mode);
+      const data = await searchAnime(trimmed, "sub");
       setResults(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to search anime.");
@@ -210,11 +265,14 @@ export default function StreamPage() {
   const clearSearch = () => {
     setQuery("");
     setResults([]);
+    setSuggestions([]);
+    setShowSuggestions(false);
     setSelectedAnime(null);
     setSelectedEpisode("");
     setDetails(null);
     setSelectedSourceIndex(0);
     setError(null);
+    suggestionCacheRef.current.clear();
   };
 
   const hasVideoSource = selectedSourceKind === "mp4" || selectedSourceKind === "hls";
@@ -252,62 +310,99 @@ export default function StreamPage() {
           </h1>
 
           {/* RESPONSIVE SEARCH BAR */}
-          <div className="w-full max-w-2xl relative flex items-center gap-1 sm:gap-2 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-1.5 shadow-sm backdrop-blur-md transition-all focus-within:border-zinc-600 focus-within:bg-zinc-900/80 focus-within:shadow-lg focus-within:shadow-zinc-950/50">
-            {/* Subtle Sub/Dub Toggle */}
-            <button
-              type="button"
-              onClick={() => setMode(mode === "sub" ? "dub" : "sub")}
-              className="flex w-12 sm:w-16 shrink-0 items-center justify-center rounded-xl px-2 sm:px-3 py-2 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
-              title={`Switch to ${mode === "sub" ? "Dub" : "Sub"}`}
-            >
-              {mode}
-            </button>
+          <div className="relative w-full max-w-2xl">
+            <div className="flex items-center gap-1 sm:gap-2 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-1.5 shadow-sm backdrop-blur-md transition-all focus-within:border-zinc-600 focus-within:bg-zinc-900/80 focus-within:shadow-lg focus-within:shadow-zinc-950/50">
 
-            {/* Search Input */}
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void submitSearch();
-                }
-              }}
-              placeholder="Search for an anime..."
-              className="min-w-0 flex-1 bg-transparent px-2 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-zinc-100 outline-none placeholder:text-zinc-600"
-              autoComplete="off"
-            />
+              {/* Search Input */}
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => {
+                  window.setTimeout(() => setShowSuggestions(false), 80);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void submitSearch();
+                  }
+                }}
+                placeholder="Search for an anime..."
+                className="min-w-0 flex-1 bg-transparent px-2 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-zinc-100 outline-none placeholder:text-zinc-600"
+                autoComplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={showSuggestions && query.trim().length > 0}
+              />
 
-            {!!query || results.length > 0 || !!selectedAnime ? (
+              {!!query || results.length > 0 || !!selectedAnime ? (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="inline-flex shrink-0 items-center justify-center rounded-xl px-2 sm:px-3 py-2 text-[10px] sm:text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+                  aria-label="Clear search"
+                >
+                  Clear
+                </button>
+              ) : null}
+
+              {/* Search Button */}
               <button
                 type="button"
-                onClick={clearSearch}
-                className="inline-flex shrink-0 items-center justify-center rounded-xl px-2 sm:px-3 py-2 text-[10px] sm:text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
-                aria-label="Clear search"
+                onClick={() => void submitSearch()}
+                disabled={searchLoading || !query.trim()}
+                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-zinc-100 px-3 sm:px-5 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-zinc-950 transition hover:bg-zinc-300 disabled:opacity-50"
               >
-                Clear
+                {searchLoading ? (
+                  <span className="animate-pulse">...</span>
+                ) : (
+                  <span className="hidden sm:inline">Search</span>
+                )}
+                {!searchLoading && (
+                  <svg className="h-4 w-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                )}
               </button>
-            ) : null}
+            </div>
 
-            {/* Search Button */}
-            <button
-              type="button"
-              onClick={() => void submitSearch()}
-              disabled={searchLoading || !query.trim()}
-              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-zinc-100 px-3 sm:px-5 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-zinc-950 transition hover:bg-zinc-300 disabled:opacity-50"
-            >
-              {searchLoading ? (
-                <span className="animate-pulse">...</span>
-              ) : (
-                <span className="hidden sm:inline">Search</span>
-              )}
-              {!searchLoading && (
-                <svg className="h-4 w-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              )}
-            </button>
+            {showSuggestions && query.trim() ? (
+              <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/95 shadow-2xl shadow-black/40 backdrop-blur-md">
+                <div className="flex items-center justify-between px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                  {suggestionsLoading ? <span className="animate-pulse">Loading</span> : null}
+                </div>
+                {suggestions.length > 0 ? (
+                  <div className="max-h-80 overflow-y-auto">
+                    {suggestions.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          setQuery(item.title);
+                          setShowSuggestions(false);
+                          void submitSearch(item.title);
+                        }}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-900 focus:bg-zinc-900 focus:outline-none"
+                      >
+                        <span className="min-w-0 truncate text-sm font-medium text-zinc-100">{item.title}</span>
+                        <span className="shrink-0 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                          {item.episodes ? `${item.episodes} eps` : "Title"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 text-sm text-zinc-500">
+                    {suggestionsLoading ? "Searching titles..." : "No suggestions found."}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {error && (
@@ -356,7 +451,7 @@ export default function StreamPage() {
               <div>
                 <h2 className="text-xl sm:text-2xl font-semibold text-zinc-100">{selectedAnime.title}</h2>
                 <p className="mt-1 text-xs sm:text-sm font-medium text-zinc-500 uppercase tracking-widest">
-                  {mode} • {episodes.length} Episodes
+                  {episodes.length} Episodes
                 </p>
               </div>
               <button
