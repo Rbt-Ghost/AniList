@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Anime } from "../api/Jikan.ts";
+import { getAnimeById, type Anime } from "../api/Jikan.ts";
 import { formatAnimeTitle, getCardImageUrl, getHeroImageCandidates } from "../utils/animeMedia.ts";
+import { isAbortError } from "../utils/errors.ts";
 
 export default function HeroSection({ items }: { items: Anime[] }) {
   const navigate = useNavigate();
   const [index, setIndex] = useState(0);
   const [seed, setSeed] = useState(0);
   const [bgSrc, setBgSrc] = useState<string | null>(null);
+  const [detailedAnime, setDetailedAnime] = useState<Anime | null>(null);
 
   // Refs for swipe detection
   const touchStartX = useRef<number | null>(null);
@@ -28,28 +30,41 @@ export default function HeroSection({ items }: { items: Anime[] }) {
 
   useEffect(() => {
     if (!anime) return;
-    const bgCandidates = getHeroImageCandidates(anime);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBgSrc(bgCandidates[0] ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anime.mal_id, seed]);
+    const controller = new AbortController();
+    const fallbackCandidates = getHeroImageCandidates(anime);
+    setDetailedAnime(null);
+    setBgSrc(fallbackCandidates[0] ?? null);
+
+    void getAnimeById(anime.mal_id, controller.signal)
+      .then((details) => {
+        setDetailedAnime(details);
+        setBgSrc(getHeroImageCandidates(details)[0] ?? fallbackCandidates[0] ?? null);
+      })
+      .catch((error: unknown) => {
+        if (isAbortError(error)) return;
+        console.error("Failed to load hero anime details.", error);
+      });
+
+    return () => controller.abort();
+  }, [anime?.mal_id, seed]);
 
   if (!anime) return null;
 
-  const title = formatAnimeTitle(anime);
-  const bgCandidates = getHeroImageCandidates(anime);
+  const displayAnime = detailedAnime?.mal_id === anime.mal_id ? detailedAnime : anime;
+  const title = formatAnimeTitle(displayAnime);
+  const bgCandidates = getHeroImageCandidates(displayAnime);
   const bgUrl = bgSrc ?? bgCandidates[0] ?? null;
-  const coverUrl = getCardImageUrl(anime);
+  const coverUrl = getCardImageUrl(displayAnime);
 
-  const scoreText = anime.score != null ? `${anime.score}` : "—";
-  const episodesText = anime.episodes != null ? `${anime.episodes}` : "—";
+  const scoreText = displayAnime.score != null ? `${displayAnime.score}` : "—";
+  const episodesText = displayAnime.episodes != null ? `${displayAnime.episodes}` : "—";
 
   // Consolidate facts
   const allFacts = [
     { label: "Score", value: scoreText },
     { label: "Episodes", value: episodesText },
-    ...(anime.status ? [{ label: "Status", value: anime.status }] : []),
-    ...(anime.year ? [{ label: "Year", value: `${anime.year}` }] : []),
+    ...(displayAnime.status ? [{ label: "Status", value: displayAnime.status }] : []),
+    ...(displayAnime.year ? [{ label: "Year", value: `${displayAnime.year}` }] : []),
   ];
   
   const bottomFacts = allFacts.slice(0, 4);
@@ -136,7 +151,7 @@ export default function HeroSection({ items }: { items: Anime[] }) {
                   {title}
                 </h2>
 
-                {anime.synopsis ? (
+                {displayAnime.synopsis ? (
                   <p
                     className="mt-1 xs:mt-2 text-xs xs:text-sm text-zinc-300/90 leading-snug"
                     style={{
@@ -146,7 +161,7 @@ export default function HeroSection({ items }: { items: Anime[] }) {
                       overflow: "hidden",
                     }}
                   >
-                    {anime.synopsis}
+                    {displayAnime.synopsis}
                   </p>
                 ) : null}
 

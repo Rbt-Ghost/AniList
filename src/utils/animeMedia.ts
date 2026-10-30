@@ -22,5 +22,5 @@ export function getHeroImageCandidates(anime: Anime): string[] {
     (u): u is string => Boolean(u)
   );
 
-  return [...trailerImageCandidates, ...posterCandidates];
+  return [...new Set([...trailerImageCandidates, ...posterCandidates])];
 }

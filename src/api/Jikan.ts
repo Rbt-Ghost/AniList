@@ -1,5 +1,5 @@
 // src/api/Jikan.ts
-const DEFAULT_BASE = "https://api.jikan.moe/v4";
+const DEFAULT_BASE = "https://jikan.lucashdo.com/v1";
 const envBase = import.meta.env.VITE_JIKAN_BASE_URL?.trim();
 const BASE = envBase
   ? envBase.startsWith("/") && !import.meta.env.DEV
@@ -23,8 +23,10 @@ let requestQueue: Promise<void> = Promise.resolve();
 type JikanEnvelope<T> = { data: T };
 type JikanPagedEnvelope<T> = {
   data: T;
-  pagination?: {
-    has_next_page?: boolean;
+  meta?: {
+    pagination?: {
+      hasNextPage?: boolean;
+    };
   };
 };
 
@@ -203,7 +205,7 @@ async function jikanGetPaged<T>(path: string, signal?: AbortSignal): Promise<{ d
   const json = (await res.json()) as JikanPagedEnvelope<T>;
   return {
     data: json.data,
-    hasNextPage: json.pagination?.has_next_page ?? false,
+    hasNextPage: json.meta?.pagination?.hasNextPage ?? false,
   };
 }
 
@@ -283,6 +285,138 @@ export type Anime = {
   characters?: AnimeCharacter[];
 };
 
+function normalizeResource(resource: { malId?: number; name: string; url?: string | null }): NamedResource & {
+  mal_id?: number;
+  url?: string | null;
+} {
+  return {
+    name: resource.name,
+    ...(resource.malId !== undefined ? { mal_id: resource.malId } : {}),
+    ...(resource.url !== undefined ? { url: resource.url } : {}),
+  };
+}
+
+type ApiAnime = Omit<Anime, "relations" | "studios" | "genres" | "themes" | "demographics" | "images"> & {
+  malId?: number;
+  titleEnglish?: string | null;
+  titleJapanese?: string | null;
+  imageUrl?: string | null;
+  images?: {
+    small?: string | null;
+    medium?: string | null;
+    large?: string | null;
+  };
+  trailer?: Anime["trailer"] & {
+    youtubeId?: string | null;
+    embedUrl?: string | null;
+    images?: {
+      imageUrl?: string | null;
+      smallImageUrl?: string | null;
+      mediumImageUrl?: string | null;
+      largeImageUrl?: string | null;
+      maximumImageUrl?: string | null;
+    };
+  };
+  relations?: Array<{
+    relation?: string | null;
+    malId?: number;
+    type?: string | null;
+    title?: string;
+    url?: string | null;
+  }>;
+  studios?: Array<{ malId?: number; name: string; url?: string | null }>;
+  genres?: Array<{ malId?: number; name: string; url?: string | null }>;
+  themes?: Array<{ malId?: number; name: string; url?: string | null }>;
+  demographics?: Array<{ malId?: number; name: string; url?: string | null }>;
+};
+
+function normalizeAnimePayload(anime: ApiAnime): Anime {
+  const relations = anime.relations?.map((relation) => ({
+    relation: relation.relation,
+    entry: relation.malId === undefined
+      ? []
+      : [{
+          mal_id: relation.malId,
+          type: relation.type,
+          name: relation.title ?? "",
+          url: relation.url,
+        }],
+  }));
+
+  return {
+    ...anime,
+    mal_id: anime.mal_id ?? anime.malId ?? 0,
+    title_english: anime.title_english ?? anime.titleEnglish,
+    title_japanese: anime.title_japanese ?? anime.titleJapanese,
+    images: anime.images
+      ? {
+          jpg: {
+            image_url: anime.images.medium ?? anime.images.large ?? anime.images.small ?? undefined,
+            small_image_url: anime.images.small ?? undefined,
+            large_image_url: anime.images.large ?? undefined,
+          },
+        }
+      : anime.imageUrl
+        ? { jpg: { image_url: anime.imageUrl } }
+        : undefined,
+    trailer: anime.trailer
+      ? {
+          ...anime.trailer,
+          youtube_id: anime.trailer.youtube_id ?? anime.trailer.youtubeId,
+          embed_url: anime.trailer.embed_url ?? anime.trailer.embedUrl,
+          images: anime.trailer.images
+            ? {
+                image_url: anime.trailer.images.image_url ?? anime.trailer.images.imageUrl,
+                small_image_url: anime.trailer.images.small_image_url ?? anime.trailer.images.smallImageUrl,
+                medium_image_url: anime.trailer.images.medium_image_url ?? anime.trailer.images.mediumImageUrl,
+                large_image_url: anime.trailer.images.large_image_url ?? anime.trailer.images.largeImageUrl,
+                maximum_image_url: anime.trailer.images.maximum_image_url ?? anime.trailer.images.maximumImageUrl,
+              }
+            : undefined,
+        }
+      : undefined,
+    studios: anime.studios?.map(normalizeResource),
+    genres: anime.genres?.map(normalizeResource),
+    themes: anime.themes?.map(normalizeResource),
+    demographics: anime.demographics?.map(normalizeResource),
+    relations,
+  };
+}
+
+type ApiCharacter = {
+  malId?: number;
+  name: string;
+  imageUrl?: string | null;
+  role?: string | null;
+  favorites?: number | null;
+  voiceActors?: Array<{
+    malId?: number;
+    name: string;
+    language?: string | null;
+    imageUrl?: string | null;
+  }>;
+};
+
+function normalizeCharacterPayload(character: ApiCharacter): AnimeCharacter {
+  return {
+    character: {
+      mal_id: character.malId ?? 0,
+      name: character.name,
+      images: character.imageUrl ? { jpg: { image_url: character.imageUrl } } : undefined,
+    },
+    role: character.role,
+    favorites: character.favorites,
+    voice_actors: character.voiceActors?.map((voiceActor) => ({
+      person: {
+        mal_id: voiceActor.malId ?? 0,
+        name: voiceActor.name,
+        images: voiceActor.imageUrl ? { jpg: { image_url: voiceActor.imageUrl } } : undefined,
+      },
+      language: voiceActor.language,
+    })),
+  };
+}
+
 export function isSfwAnime(anime: Anime): boolean {
   const rating = (anime.rating ?? "").toLowerCase();
   if (rating.startsWith("rx")) return false;
@@ -295,12 +429,10 @@ export function isSfwAnime(anime: Anime): boolean {
 export function getTopAnime(signal?: AbortSignal) {
   const params = new URLSearchParams({
     page: "1",
-    limit: "20",
-    sfw: "true",
   });
 
-  return jikanGetPaged<Anime[]>(`/top/anime?${params}`, signal).then(({ data, hasNextPage }) => ({
-    items: normalizeAnimeList(data).filter(isSfwAnime),
+  return jikanGetPaged<ApiAnime[]>(`/top/anime?${params}`, signal).then(({ data, hasNextPage }) => ({
+    items: normalizeAnimeList(data.map(normalizeAnimePayload)).filter(isSfwAnime),
     hasNextPage,
   }));
 }
@@ -308,19 +440,18 @@ export function getTopAnime(signal?: AbortSignal) {
 export function getTopAnimePage(page: number, limit = 20, signal?: AbortSignal) {
   const params = new URLSearchParams({
     page: String(page),
-    limit: String(limit),
-    sfw: "true",
   });
 
-  return jikanGetPaged<Anime[]>(`/top/anime?${params}`, signal).then(({ data, hasNextPage }) => ({
-    items: normalizeAnimeList(data).filter(isSfwAnime),
+  return jikanGetPaged<ApiAnime[]>(`/top/anime?${params}`, signal).then(({ data, hasNextPage }) => ({
+    items: normalizeAnimeList(data.map(normalizeAnimePayload)).slice(0, limit).filter(isSfwAnime),
     hasNextPage,
   }));
 }
 
 export function getOngoingAnime(signal?: AbortSignal) {
-  const params = new URLSearchParams({ limit: "15" });
-  return jikanGet<Anime[]>(`/seasons/now?${params}`, signal).then((items) => normalizeAnimeList(items).filter(isSfwAnime));
+  return jikanGet<ApiAnime[]>(`/seasons/now`, signal).then((items) =>
+    normalizeAnimeList(items.map(normalizeAnimePayload)).slice(0, 15).filter(isSfwAnime)
+  );
 }
 
 export function searchAnime(q: string, signal?: AbortSignal) {
@@ -330,9 +461,9 @@ export function searchAnime(q: string, signal?: AbortSignal) {
     return Promise.resolve(cached.value);
   }
 
-  const params = new URLSearchParams({ q, limit: "12", sfw: "true" });
-  return jikanGet<Anime[]>(`/anime?${params}`, signal).then((items) => {
-    const normalized = normalizeAnimeList(items).filter(isSfwAnime);
+  const params = new URLSearchParams({ q });
+  return jikanGet<ApiAnime[]>(`/anime?${params}`, signal).then((items) => {
+    const normalized = normalizeAnimeList(items.map(normalizeAnimePayload)).slice(0, 12).filter(isSfwAnime);
     searchCache.set(normalizedQuery, {
       value: normalized,
       expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
@@ -346,13 +477,15 @@ export function getAnimeById(id: number, signal?: AbortSignal) {
   if (cached) {
     return Promise.resolve(normalizeTrailer(cached));
   }
-  return jikanGet<Anime>(`/anime/${id}/full`, signal).then((anime) => {
-    const normalized = normalizeTrailer(anime);
+  return jikanGet<ApiAnime>(`/anime/${id}/full`, signal).then((anime) => {
+    const normalized = normalizeTrailer(normalizeAnimePayload(anime));
     cacheAnime(normalized);
     return normalized;
   });
 }
 
 export function getAnimeCharacters(id: number, signal?: AbortSignal) {
-  return jikanGet<AnimeCharacter[]>(`/anime/${id}/characters`, signal);
+  return jikanGet<ApiCharacter[]>(`/anime/${id}/characters`, signal).then((characters) =>
+    characters.map(normalizeCharacterPayload)
+  );
 }
