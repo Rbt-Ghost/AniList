@@ -16,13 +16,13 @@ export default function AboutTab() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <a
-          href="https://jikan.moe/"
+          href="https://jikan.lucashdo.com/"
           target="_blank"
           rel="noreferrer"
           className="group flex flex-col items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 transition hover:border-zinc-700 hover:bg-zinc-800/50"
         >
           <div className="flex w-full items-center justify-between text-zinc-100">
-            <span className="font-medium">Jikan API</span>
+            <span className="font-medium">Jikan-edge API</span>
             <ExternalLinkIcon />
           </div>
           <p className="text-xs text-zinc-500 leading-relaxed">Powered by the unofficial MyAnimeList REST API.</p>

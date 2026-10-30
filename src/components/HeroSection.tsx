@@ -10,6 +10,7 @@ export default function HeroSection({ items }: { items: Anime[] }) {
   const [seed, setSeed] = useState(0);
   const [bgSrc, setBgSrc] = useState<string | null>(null);
   const [detailedAnime, setDetailedAnime] = useState<Anime | null>(null);
+  const [detailsReady, setDetailsReady] = useState(false);
 
   // Refs for swipe detection
   const touchStartX = useRef<number | null>(null);
@@ -33,16 +34,20 @@ export default function HeroSection({ items }: { items: Anime[] }) {
     const controller = new AbortController();
     const fallbackCandidates = getHeroImageCandidates(anime);
     setDetailedAnime(null);
-    setBgSrc(fallbackCandidates[0] ?? null);
+    setBgSrc(null);
+    setDetailsReady(false);
 
     void getAnimeById(anime.mal_id, controller.signal)
       .then((details) => {
         setDetailedAnime(details);
         setBgSrc(getHeroImageCandidates(details)[0] ?? fallbackCandidates[0] ?? null);
+        setDetailsReady(true);
       })
       .catch((error: unknown) => {
         if (isAbortError(error)) return;
         console.error("Failed to load hero anime details.", error);
+        setBgSrc(fallbackCandidates[0] ?? null);
+        setDetailsReady(true);
       });
 
     return () => controller.abort();
@@ -53,7 +58,7 @@ export default function HeroSection({ items }: { items: Anime[] }) {
   const displayAnime = detailedAnime?.mal_id === anime.mal_id ? detailedAnime : anime;
   const title = formatAnimeTitle(displayAnime);
   const bgCandidates = getHeroImageCandidates(displayAnime);
-  const bgUrl = bgSrc ?? bgCandidates[0] ?? null;
+  const bgUrl = detailsReady ? bgSrc ?? bgCandidates[0] ?? null : null;
   const coverUrl = getCardImageUrl(displayAnime);
 
   const scoreText = displayAnime.score != null ? `${displayAnime.score}` : "—";
